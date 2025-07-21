@@ -1,6 +1,9 @@
 class_name State_Idle extends State
 
 @onready var walk: State = $"../Walk"
+@onready var dash: State = $"../Dash"
+@onready var attack: State = $"../Attack"
+@onready var ranged_attack: State = $"../RangedAttack"
 
 
 
@@ -25,4 +28,10 @@ func Physics(_delta: float) -> State:
 
 
 func HandleInput(_event: InputEvent) -> State:
-	return null 
+	if _event.is_action_pressed("dash") and player.can_dash:
+		return dash
+	if _event.is_action_pressed("click"):
+		return attack
+	if _event.is_action_pressed("ranged_attack"):
+		return ranged_attack
+	return null

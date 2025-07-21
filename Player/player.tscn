@@ -1,27 +1,15 @@
-[gd_scene load_steps=15 format=3 uid="uid://bw8xhfdk8pw6f"]
+[gd_scene load_steps=20 format=3 uid="uid://bw8xhfdk8pw6f"]
 
 [ext_resource type="Texture2D" uid="uid://dnsd0skoda4ag" path="res://Player/Sprites/ExamplePlayerSprite.png" id="1_jgwl8"]
 [ext_resource type="Script" path="res://Player/Scripts/player_state_machine.gd" id="2_0sc1c"]
 [ext_resource type="Script" path="res://Player/Scripts/state_idle.gd" id="3_lenb3"]
 [ext_resource type="Script" path="res://Player/Scripts/state_walk.gd" id="4_fwdmd"]
-
-[sub_resource type="GDScript" id="GDScript_leafx"]
-script/source = "extends CharacterBody2D
-
-@export var speed = 200
-
-var target = position 
-
-func _input(event: InputEvent) -> void:
-	if event.is_action_pressed(\"click\"):
-		target = get_global_mouse_position() 
-
-func _physics_process(delta: float) -> void:
-	velocity = position.direction_to(target) * speed
-	if position.distance_to(target) > 10:
-		move_and_slide()
- 
-"
+[ext_resource type="Script" path="res://Player/Scripts/state_attack.gd" id="5_jb5t6"]
+[ext_resource type="Script" path="res://Player/Scripts/player.gd" id="6_player"]
+[ext_resource type="Script" path="res://Player/Scripts/state_dash.gd" id="7_dash"]
+[ext_resource type="PackedScene" uid="uid://bm8xhfdk8pw7g" path="res://Projectile/projectile.tscn" id="8_projectile"]
+[ext_resource type="Script" path="res://Player/Scripts/state_ranged_attack.gd" id="9_ranged"]
+[ext_resource type="Script" path="res://Player/Scripts/attack_arc.gd" id="10_arc"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_tnyha"]
 radius = 12.0
@@ -157,7 +145,8 @@ _data = {
 
 [node name="Player" type="CharacterBody2D"]
 position = Vector2(241, 129)
-script = SubResource("GDScript_leafx")
+script = ExtResource("6_player")
+projectile_scene = ExtResource("8_projectile")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 position = Vector2(0, -1)
@@ -181,3 +170,15 @@ script = ExtResource("3_lenb3")
 
 [node name="Walk" type="Node" parent="StateMachine"]
 script = ExtResource("4_fwdmd")
+
+[node name="Attack" type="Node" parent="StateMachine"]
+script = ExtResource("5_jb5t6")
+
+[node name="Dash" type="Node" parent="StateMachine"]
+script = ExtResource("7_dash")
+
+[node name="RangedAttack" type="Node" parent="StateMachine"]
+script = ExtResource("9_ranged")
+
+[node name="AttackArc" type="Node2D" parent="."]
+script = ExtResource("10_arc")
