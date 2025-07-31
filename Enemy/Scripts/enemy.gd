@@ -22,6 +22,8 @@ func _ready() -> void:
 	current_health = max_health
 	# Add to enemies group so the attack system can find us
 	add_to_group("enemies")
+	# Assicura che l'enemy sia sopra la griglia
+	z_index = 100
 	pass
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
@@ -42,10 +44,11 @@ func _process(delta: float) -> void:
 		knockback_timer -= delta
 	
 	# Simple AI: only chase if not in knockback
-	if player and knockback_timer <= 0:
-		var distance_to_player = global_position.distance_to(player.global_position)
-		if distance_to_player <= chase_range:
-			chase_player(delta)
+	# DISABLED: Enemy movement disabled for grid-based gameplay
+	# if player and knockback_timer <= 0:
+	#	var distance_to_player = global_position.distance_to(player.global_position)
+	#	if distance_to_player <= chase_range:
+	#		chase_player(delta)
 
 func _physics_process(delta: float) -> void:
 	if is_dead:

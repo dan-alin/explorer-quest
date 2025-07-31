@@ -1,15 +1,15 @@
 [gd_scene load_steps=20 format=3 uid="uid://bw8xhfdk8pw6f"]
 
 [ext_resource type="Texture2D" uid="uid://dnsd0skoda4ag" path="res://Player/Sprites/ExamplePlayerSprite.png" id="1_jgwl8"]
-[ext_resource type="Script" path="res://Player/Scripts/player_state_machine.gd" id="2_0sc1c"]
-[ext_resource type="Script" path="res://Player/Scripts/state_idle.gd" id="3_lenb3"]
-[ext_resource type="Script" path="res://Player/Scripts/state_walk.gd" id="4_fwdmd"]
-[ext_resource type="Script" path="res://Player/Scripts/state_attack.gd" id="5_jb5t6"]
-[ext_resource type="Script" path="res://Player/Scripts/player.gd" id="6_player"]
-[ext_resource type="Script" path="res://Player/Scripts/state_dash.gd" id="7_dash"]
+[ext_resource type="Script" uid="uid://dxlhtw601044l" path="res://Player/Scripts/player_state_machine.gd" id="2_0sc1c"]
+[ext_resource type="Script" uid="uid://cce1hd45cknnx" path="res://Player/Scripts/state_idle.gd" id="3_lenb3"]
+[ext_resource type="Script" uid="uid://c5ku4jahmpxj8" path="res://Player/Scripts/state_walk.gd" id="4_fwdmd"]
+[ext_resource type="Script" uid="uid://km3nsmrusqvi" path="res://Player/Scripts/state_attack.gd" id="5_jb5t6"]
+[ext_resource type="Script" uid="uid://fiei0wr4vxov" path="res://Player/Scripts/player.gd" id="6_player"]
+[ext_resource type="Script" uid="uid://chjkoa6nfju73" path="res://Player/Scripts/state_dash.gd" id="7_dash"]
 [ext_resource type="PackedScene" uid="uid://bm8xhfdk8pw7g" path="res://Projectile/projectile.tscn" id="8_projectile"]
-[ext_resource type="Script" path="res://Player/Scripts/state_ranged_attack.gd" id="9_ranged"]
-[ext_resource type="Script" path="res://Player/Scripts/attack_arc.gd" id="10_arc"]
+[ext_resource type="Script" uid="uid://cc01qt5p2i2dw" path="res://Player/Scripts/state_ranged_attack.gd" id="9_ranged"]
+[ext_resource type="Script" uid="uid://b6a7o1jestpk7" path="res://Player/Scripts/attack_arc.gd" id="10_arc"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_tnyha"]
 radius = 12.0
@@ -134,13 +134,13 @@ tracks/0/keys = {
 
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_ls4un"]
 _data = {
-"RESET": SubResource("Animation_ek1xy"),
-"idle_down": SubResource("Animation_jswfg"),
-"idle_side": SubResource("Animation_unyn0"),
-"idle_top": SubResource("Animation_gdsmy"),
-"walk_down": SubResource("Animation_ex40y"),
-"walk_side": SubResource("Animation_nkpe1"),
-"walk_up": SubResource("Animation_p06ym")
+&"RESET": SubResource("Animation_ek1xy"),
+&"idle_down": SubResource("Animation_jswfg"),
+&"idle_side": SubResource("Animation_unyn0"),
+&"idle_top": SubResource("Animation_gdsmy"),
+&"walk_down": SubResource("Animation_ex40y"),
+&"walk_side": SubResource("Animation_nkpe1"),
+&"walk_up": SubResource("Animation_p06ym")
 }
 
 [node name="Player" type="CharacterBody2D"]
@@ -159,7 +159,7 @@ hframes = 21
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="."]
 libraries = {
-"": SubResource("AnimationLibrary_ls4un")
+&"": SubResource("AnimationLibrary_ls4un")
 }
 
 [node name="StateMachine" type="Node" parent="."]

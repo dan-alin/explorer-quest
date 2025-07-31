@@ -27,14 +27,19 @@ func _ready() -> void:
 	current_health = max_health
 	add_to_group("player")  # Add to group so enemies can find us
 	state_machine.Initialize(self)
+	# Assicura che il player sia sopra la griglia
+	z_index = 100
+	
+	# Snap il player al centro di una cella all'avvio
+	snap_to_grid_center()
+	
 	pass # Replace with function body.
 
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
-	
-	direction.x = Input.get_action_strength("right") - Input.get_action_strength("left")
-	direction.y = Input.get_action_strength("down") - Input.get_action_strength("up")
+	# No automatic keyboard input - movement only via mouse clicks
+	direction = Vector2.ZERO
 	
 	pass
 
@@ -142,3 +147,51 @@ func shoot_projectile(target_position: Vector2) -> void:
 	projectile.initialize(spawn_position, shoot_direction, 1.0)  # 1 damage
 	
 	print("Player shoots projectile toward ", target_position)
+
+func snap_to_grid_center():
+	# Snap il player al centro di una cella all'avvio del gioco
+	var tilemap = get_parent() as TileMapLayer
+	if not tilemap:
+		print("Player: No tilemap found for grid snapping")
+		return
+	
+	# Trova la cella più vicina alla posizione attuale del player
+	var player_local_pos = tilemap.to_local(global_position)
+	var current_grid_pos = tilemap.local_to_map(player_local_pos)
+	
+	# Controlla se la cella corrente è valida
+	var tile_data = tilemap.get_cell_tile_data(current_grid_pos)
+	if tile_data == null:
+		# Se la cella corrente non è valida, trova la cella valida più vicina
+		current_grid_pos = find_nearest_valid_cell(tilemap, current_grid_pos)
+	
+	# Calcola il centro della cella e posiziona il player
+	var cell_center_local = tilemap.map_to_local(current_grid_pos)
+	var cell_center_global = tilemap.to_global(cell_center_local)
+	
+	# Usa lo stesso offset che usiamo per il movimento
+	var adjusted_position = cell_center_global + Vector2(1, -19)
+	
+	# Posiziona il player
+	global_position = adjusted_position
+	
+	print("Player snapped to grid cell ", current_grid_pos, " at position ", global_position)
+
+func find_nearest_valid_cell(tilemap: TileMapLayer, start_pos: Vector2i) -> Vector2i:
+	# Trova la cella valida (con tile) più vicina alla posizione di partenza
+	var used_cells = tilemap.get_used_cells()
+	
+	if used_cells.is_empty():
+		return start_pos  # Fallback
+	
+	# Trova la cella più vicina
+	var nearest_cell = used_cells[0]
+	var min_distance = abs(start_pos.x - nearest_cell.x) + abs(start_pos.y - nearest_cell.y)
+	
+	for cell in used_cells:
+		var distance = abs(start_pos.x - cell.x) + abs(start_pos.y - cell.y)
+		if distance < min_distance:
+			min_distance = distance
+			nearest_cell = cell
+	
+	return nearest_cell
