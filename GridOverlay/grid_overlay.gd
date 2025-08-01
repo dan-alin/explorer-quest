@@ -8,8 +8,16 @@ class_name GridOverlay
 @export var hover_color: Color = Color(1, 1, 0, 0.6)  # Giallo per hover
 @export var hover_width: float = 3.0  # Più spesso per evidenziare
 
+# Movement highlighting
+@export var highlight_color: Color = Color(0.2, 0.8, 0.2, 0.4)  # Verde semi-trasparente
+@export var highlight_border_color: Color = Color(0.0, 1.0, 0.0, 0.8)  # Verde bordo
+@export var highlight_border_width: float = 2.0
+
 # Hover state
 var hovered_cell: Vector2i = Vector2i(-999, -999)  # Cella attualmente sotto il mouse
+
+# Movement highlighting state
+var highlighted_cells: Array[Vector2i] = []  # Celle evidenziate per movimento
 
 func _ready():
 	print("GridOverlay: _ready() called")
@@ -76,6 +84,9 @@ func _draw():
 	# Disegna la griglia
 	draw_grid_lines(min_x, max_x, min_y, max_y)
 	
+	# Disegna le celle evidenziate per movimento
+	draw_highlighted_cells()
+	
 	# Disegna l'hover se c'è una cella sotto il mouse
 	draw_hover_cell()
 
@@ -121,6 +132,23 @@ func get_cell_corners(grid_pos: Vector2i) -> Array[Vector2]:
 	
 	return corners
 
+func draw_highlighted_cells():
+	# Disegna l'evidenziazione delle celle raggiungibili
+	for cell in highlighted_cells:
+		var cell_corners = get_cell_corners(cell)
+		var local_corners = []
+		for corner in cell_corners:
+			var global_corner = tilemap.to_global(corner)
+			local_corners.append(to_local(global_corner))
+		
+		# Disegna l'evidenziazione con un bordo verde
+		if local_corners.size() == 4:
+			draw_polygon(local_corners, [highlight_color])
+			draw_line(local_corners[0], local_corners[1], highlight_border_color, highlight_border_width)
+			draw_line(local_corners[1], local_corners[2], highlight_border_color, highlight_border_width)
+			draw_line(local_corners[2], local_corners[3], highlight_border_color, highlight_border_width)
+			draw_line(local_corners[3], local_corners[0], highlight_border_color, highlight_border_width)
+
 func draw_hover_cell():
 	# Disegna l'evidenziazione della cella sotto il mouse
 	if hovered_cell == Vector2i(-999, -999):
@@ -141,6 +169,29 @@ func draw_hover_cell():
 		draw_line(local_corners[1], local_corners[2], hover_color, hover_width)  # Right -> Bottom  
 		draw_line(local_corners[2], local_corners[3], hover_color, hover_width)  # Bottom -> Left
 		draw_line(local_corners[3], local_corners[0], hover_color, hover_width)  # Left -> Top
+
+# Movement highlighting functions
+func highlight_reachable_cells(start_position: Vector2i, movement_range: int) -> void:
+	# Calcola le celle raggiungibili
+	highlighted_cells = MovementCalculator.get_reachable_cells(tilemap, start_position, movement_range)
+	print("GridOverlay: Highlighting ", highlighted_cells.size(), " reachable cells")
+	# Ridisegna per mostrare le nuove evidenziazioni
+	queue_redraw()
+
+func clear_highlights() -> void:
+	# Pulisce tutte le evidenziazioni
+	highlighted_cells.clear()
+	print("GridOverlay: Cleared movement highlights")
+	# Ridisegna per rimuovere le evidenziazioni
+	queue_redraw()
+
+func is_cell_highlighted(cell_pos: Vector2i) -> bool:
+	# Controlla se una cella è attualmente evidenziata
+	return cell_pos in highlighted_cells
+
+func get_highlighted_cells() -> Array[Vector2i]:
+	# Ottieni tutte le celle attualmente evidenziate
+	return highlighted_cells.duplicate()
 
 # Forza il ridisegno quando necessario
 func refresh_grid():

@@ -3,10 +3,14 @@ class_name Player extends CharacterBody2D
 var cardinal_direction: Vector2 = Vector2.DOWN
 var direction: Vector2 = Vector2.ZERO
 
-# Health properties
-@export var max_health: float = 100.0
-var current_health: float
+# Character stats
+@export var stats: CharacterStats
 var is_invulnerable: bool = false
+
+# Movement highlighting
+var grid_overlay: GridOverlay
+var is_movement_mode: bool = false
+var current_grid_position: Vector2i  # Posizione griglia corrente del player
 
 # Dash/Dodge properties
 var dash_direction: Vector2 = Vector2.ZERO
@@ -24,7 +28,10 @@ var projectile_spawn_offset: float = 20.0
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
-	current_health = max_health
+	# Initialize stats if not already set
+	if not stats:
+		stats = CharacterStats.create_character_stats(4, 250.0, 100.0)  # Player default stats
+	
 	add_to_group("player")  # Add to group so enemies can find us
 	state_machine.Initialize(self)
 	# Assicura che il player sia sopra la griglia
@@ -33,7 +40,10 @@ func _ready() -> void:
 	# Snap il player al centro di una cella all'avvio
 	snap_to_grid_center()
 	
-	pass # Replace with function body.
+	print("Player initialized with stats: ", stats.get_stats_info())
+	
+	# Entra automaticamente in movement mode dopo l'inizializzazione
+	call_deferred("enter_movement_mode")
 
 
 # Called every frame. 'delta' is the elapsed time since the previous frame.
@@ -84,11 +94,11 @@ func AnimateDirection() -> String:
 
 # Damage system for player
 func take_damage(damage: float, knockback_vector: Vector2) -> void:
-	if is_invulnerable:
+	if is_invulnerable or not stats:
 		return
 	
-	current_health -= damage
-	print("Player took ", damage, " damage! Health: ", current_health, "/", max_health)
+	var actual_damage = stats.take_damage(damage)
+	print("Player took ", actual_damage, " damage! Health: ", stats.current_health, "/", stats.max_health)
 	
 	# Apply knockback
 	velocity += knockback_vector
@@ -99,7 +109,7 @@ func take_damage(damage: float, knockback_vector: Vector2) -> void:
 	# Brief invulnerability to prevent spam damage
 	set_invulnerable(1.0)
 	
-	if current_health <= 0:
+	if not stats.is_alive():
 		die()
 
 func flash_damage() -> void:
@@ -175,6 +185,9 @@ func snap_to_grid_center():
 	# Posiziona il player
 	global_position = adjusted_position
 	
+	# Memorizza la posizione griglia corretta
+	current_grid_position = current_grid_pos
+	
 	print("Player snapped to grid cell ", current_grid_pos, " at position ", global_position)
 
 func find_nearest_valid_cell(tilemap: TileMapLayer, start_pos: Vector2i) -> Vector2i:
@@ -195,3 +208,66 @@ func find_nearest_valid_cell(tilemap: TileMapLayer, start_pos: Vector2i) -> Vect
 			nearest_cell = cell
 	
 	return nearest_cell
+
+# Movement utility functions based on stats
+func get_movement_range() -> int:
+	if not stats:
+		return 0
+	return stats.get_movement_range()
+
+func can_move_to_distance(distance: int) -> bool:
+	if not stats:
+		return false
+	return stats.can_move_to_distance(distance)
+
+# Movement highlighting functions
+func initialize_grid_overlay() -> void:
+	# Trova il GridOverlay nella scena
+	if not grid_overlay:
+		var tilemap = get_parent() as TileMapLayer
+		if tilemap:
+			# Cerca il GridOverlay come figlio della tilemap
+			for child in tilemap.get_children():
+				if child is GridOverlay:
+					grid_overlay = child
+					print("Found GridOverlay: ", grid_overlay.name)
+					break
+		
+		if not grid_overlay:
+			print("Warning: Could not find GridOverlay!")
+
+func enter_movement_mode() -> void:
+	# Entra in modalità movimento
+	is_movement_mode = true
+	
+	# Inizializza il grid overlay se necessario
+	initialize_grid_overlay()
+	
+	# Calcola e evidenzia le celle raggiungibili
+	if grid_overlay:
+		var tilemap = get_parent() as TileMapLayer
+		if tilemap:
+			print("=== PLAYER MOVEMENT MODE DEBUG ===")
+			print("Player starting grid position: ", current_grid_position)
+			print("Movement range: ", get_movement_range())
+			print("======================================")
+			
+			# Evidenzia le celle raggiungibili
+			grid_overlay.highlight_reachable_cells(current_grid_position, get_movement_range())
+			print("Entered movement mode - highlighting reachable cells")
+
+func exit_movement_mode() -> void:
+	# Esci dalla modalità movimento
+	is_movement_mode = false
+	
+	# Pulisci le evidenziazioni
+	if grid_overlay:
+		grid_overlay.clear_highlights()
+		print("Exited movement mode - cleared highlights")
+
+func is_cell_reachable(target_cell: Vector2i) -> bool:
+	# Controlla se una cella è raggiungibile e evidenziata
+	if not grid_overlay or not is_movement_mode:
+		return false
+	
+	return grid_overlay.is_cell_highlighted(target_cell)

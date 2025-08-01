@@ -33,14 +33,14 @@ func HandleInput(_event: InputEvent) -> State:
 	if _event.is_action_pressed("ranged_attack"):
 		return ranged_attack
 	
-	# Handle mouse click for movement
+	# Handle mouse click for movement (movement mode sempre attivo)
 	if _event is InputEventMouseButton and _event.pressed and _event.button_index == MouseButton.MOUSE_BUTTON_LEFT:
 		handle_movement_click(_event.global_position)
 	
 	return null
 
 func handle_movement_click(mouse_pos: Vector2):
-	# Muovi il player al centro della cella cliccata (solo se diversa da quella attuale)
+	# Muovi il player al centro della cella cliccata (solo se raggiungibile)
 	print("=== GRID MOVEMENT ===")
 	print("Mouse clicked at: ", mouse_pos)
 	
@@ -62,10 +62,10 @@ func handle_movement_click(mouse_pos: Vector2):
 			print("=========================")
 			return
 		
-		# 4. Controlla se la cella target è valida
-		var tile_data = tilemap.get_cell_tile_data(target_grid_pos)
-		if tile_data == null:
-			print("No tile at target position!")
+		# 4. Controlla se la cella è evidenziata (raggiungibile)
+		if not player.is_cell_reachable(target_grid_pos):
+			print("Cell not reachable or highlighted - movement denied!")
+			print("=========================")
 			return
 		
 		# 5. Calcola il centro della cella target
@@ -78,6 +78,13 @@ func handle_movement_click(mouse_pos: Vector2):
 		
 		# 6. Muovi il player alla nuova cella
 		player.global_position = adjusted_position
+		
+		# 7. Aggiorna la posizione griglia del player
+		player.current_grid_position = target_grid_pos
+		
+		# 8. Aggiorna le evidenziazioni dalla nuova posizione
+		player.enter_movement_mode()  # Ricalcola le celle raggiungibili
+		
 		print("Player moved to: ", player.global_position)
 		print("=========================")
 	else:
