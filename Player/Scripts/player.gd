@@ -12,6 +12,10 @@ var grid_overlay: GridOverlay
 var is_movement_mode: bool = false
 var current_grid_position: Vector2i  # Posizione griglia corrente del player
 
+# Movement per turn system
+var remaining_movement: int = 0  # Movimento rimanente nel turno corrente
+var total_movement_this_turn: int = 0  # Movimento totale utilizzato in questo turno
+
 # Dash/Dodge properties
 var dash_direction: Vector2 = Vector2.ZERO
 var can_dash: bool = true
@@ -247,13 +251,22 @@ func enter_movement_mode() -> void:
 	if grid_overlay:
 		var tilemap = get_parent() as TileMapLayer
 		if tilemap:
+			# Se non è stato inizializzato il sistema di turni, inizializzalo
+			if remaining_movement == 0 and total_movement_this_turn == 0:
+				start_new_turn()
+			
 			print("=== PLAYER MOVEMENT MODE DEBUG ===")
 			print("Player starting grid position: ", current_grid_position)
-			print("Movement range: ", get_movement_range())
+			print("Remaining movement: ", remaining_movement)
+			print("Max movement range: ", get_movement_range())
 			print("======================================")
 			
-			# Evidenzia le celle raggiungibili
-			grid_overlay.highlight_reachable_cells(current_grid_position, get_movement_range())
+			# Evidenzia le celle raggiungibili basate sul movimento residuo
+			if has_movement_left():
+				grid_overlay.highlight_reachable_cells(current_grid_position, remaining_movement)
+			else:
+				grid_overlay.clear_highlights()
+				print("No movement left - no cells highlighted")
 			print("Entered movement mode - highlighting reachable cells")
 
 func exit_movement_mode() -> void:
@@ -271,3 +284,55 @@ func is_cell_reachable(target_cell: Vector2i) -> bool:
 		return false
 	
 	return grid_overlay.is_cell_highlighted(target_cell)
+
+# Turn-based movement system
+func start_new_turn() -> void:
+	# Inizia un nuovo turno - ripristina il movimento completo
+	remaining_movement = get_movement_range()
+	total_movement_this_turn = 0
+	print("=== NEW TURN STARTED ===")
+	print("Movement available: ", remaining_movement)
+	print("=========================")
+	
+	# Ricalcola le evidenziazioni per il nuovo turno
+	if is_movement_mode:
+		enter_movement_mode()
+
+func consume_movement(distance: int) -> bool:
+	# Consuma movimento per una certa distanza
+	if distance > remaining_movement:
+		print("Not enough movement! Required: ", distance, ", Available: ", remaining_movement)
+		return false
+	
+	remaining_movement -= distance
+	total_movement_this_turn += distance
+	
+	print("Movement consumed: ", distance)
+	print("Remaining movement: ", remaining_movement)
+	
+	# Se non c'è più movimento, termina il turno
+	if remaining_movement <= 0:
+		end_turn()
+	
+	return true
+
+func get_remaining_movement() -> int:
+	return remaining_movement
+
+func can_afford_movement(distance: int) -> bool:
+	return distance <= remaining_movement
+
+func end_turn() -> void:
+	# Termina il turno - nessun movimento rimasto
+	print("=== TURN ENDED ===")
+	print("Total movement used: ", total_movement_this_turn)
+	print("No more movement available!")
+	print("===================")
+	
+	# Disabilita le evidenziazioni
+	if grid_overlay:
+		grid_overlay.clear_highlights()
+	# Ma mantieni movement mode attivo per permettere azioni future
+
+func has_movement_left() -> bool:
+	return remaining_movement > 0
