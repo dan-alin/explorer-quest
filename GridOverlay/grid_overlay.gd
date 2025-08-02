@@ -9,15 +9,19 @@ class_name GridOverlay
 @export var hover_width: float = 3.0  # Più spesso per evidenziare
 
 # Movement highlighting
-@export var highlight_color: Color = Color(0.2, 0.8, 0.2, 0.4)  # Verde semi-trasparente
-@export var highlight_border_color: Color = Color(0.0, 1.0, 0.0, 0.8)  # Verde bordo
+@export var highlight_color: Color = Color(0.5, 0.8, 1.0, 0.4)  # Sky blue semi-trasparente
+@export var highlight_border_color: Color = Color(0.2, 0.6, 1.0, 0.8)  # Sky blue bordo
 @export var highlight_border_width: float = 2.0
 
 # Path preview colors
-@export var path_preview_color: Color = Color(0.8, 0.4, 0.8, 0.6)  # Viola per preview
-@export var path_preview_border_color: Color = Color(1.0, 0.0, 1.0, 0.8)  # Viola bordo
+@export var path_preview_color: Color = Color(0.2, 0.4, 0.8, 0.6)  # Dark blue per preview
+@export var path_preview_border_color: Color = Color(0.1, 0.3, 0.7, 0.8)  # Dark blue bordo
 @export var path_preview_width: float = 3.0
-@export var path_arrow_color: Color = Color(1.0, 0.5, 1.0, 0.9)  # Viola chiaro per frecce
+@export var path_arrow_color: Color = Color(0.3, 0.5, 0.9, 0.9)  # Dark blue chiaro per frecce
+
+# Target position colors
+@export var target_color: Color = Color(0.1, 0.3, 0.7, 1.0)  # Dark blue opaco per target (same as border)
+@export var target_border_color: Color = Color(0.1, 0.3, 0.7, 1.0)  # Dark blue opaco bordo per target
 
 # Hover state
 var hovered_cell: Vector2i = Vector2i(-999, -999)  # Cella attualmente sotto il mouse
@@ -185,12 +189,23 @@ func draw_hover_cell():
 		var global_corner = tilemap.to_global(corner)
 		local_corners.append(to_local(global_corner))
 	
-	# Disegna l'hover (diamante giallo più spesso)
+	# Controlla se la cella è raggiungibile (target valido)
+	var is_valid_target = is_cell_highlighted(hovered_cell)
+	
 	if local_corners.size() == 4:
-		draw_line(local_corners[0], local_corners[1], hover_color, hover_width)  # Top -> Right
-		draw_line(local_corners[1], local_corners[2], hover_color, hover_width)  # Right -> Bottom  
-		draw_line(local_corners[2], local_corners[3], hover_color, hover_width)  # Bottom -> Left
-		draw_line(local_corners[3], local_corners[0], hover_color, hover_width)  # Left -> Top
+		if is_valid_target:
+			# Disegna il target valido con dark blue opaco
+			draw_polygon(local_corners, [target_color])
+			draw_line(local_corners[0], local_corners[1], target_border_color, highlight_border_width)
+			draw_line(local_corners[1], local_corners[2], target_border_color, highlight_border_width)
+			draw_line(local_corners[2], local_corners[3], target_border_color, highlight_border_width)
+			draw_line(local_corners[3], local_corners[0], target_border_color, highlight_border_width)
+		else:
+			# Disegna l'hover normale (diamante giallo per target non validi)
+			draw_line(local_corners[0], local_corners[1], hover_color, hover_width)  # Top -> Right
+			draw_line(local_corners[1], local_corners[2], hover_color, hover_width)  # Right -> Bottom  
+			draw_line(local_corners[2], local_corners[3], hover_color, hover_width)  # Bottom -> Left
+			draw_line(local_corners[3], local_corners[0], hover_color, hover_width)  # Left -> Top
 func update_path_preview():
 	if not player_reference or hovered_cell == Vector2i(-999, -999):
 		path_preview.clear()
@@ -350,6 +365,11 @@ func get_highlighted_cells() -> Array[Vector2i]:
 	# Ottieni tutte le celle attualmente evidenziate
 	return highlighted_cells.duplicate()
 
+# Pulisce il path preview
+func clear_path_preview() -> void:
+	path_preview.clear()
+	queue_redraw()
+	
 # Forza il ridisegno quando necessario
 func refresh_grid():
 	queue_redraw()

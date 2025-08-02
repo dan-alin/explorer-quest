@@ -6,6 +6,7 @@
 [ext_resource type="Script" uid="uid://bj8qmp2jjr2fb" path="res://GridOverlay/grid_overlay.gd" id="4_gridoverlay"]
 [ext_resource type="Script" path="res://Movement/obstacle_manager.gd" id="5_obstacle_manager"]
 [ext_resource type="Script" path="res://playground_init.gd" id="6_playground_init"]
+[ext_resource type="Script" path="res://UI/movement_ui.gd" id="7_movement_ui"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_is3ju"]
 texture = ExtResource("1_m8u5f")
@@ -20,6 +21,12 @@ tile_layout = 5
 tile_offset_axis = 1
 tile_size = Vector2i(50, 25)
 sources/0 = SubResource("TileSetAtlasSource_is3ju")
+
+[sub_resource type="LabelSettings" id="LabelSettings_movement"]
+font_size = 18
+font_color = Color(1, 1, 1, 1)
+outline_size = 2
+outline_color = Color(0, 0, 0, 1)
 
 [node name="Playground" type="TileMapLayer"]
 position = Vector2(100, -15)
@@ -37,3 +44,17 @@ grid_color = Color(0.0156863, 0, 0, 0.8)
 
 [node name="ObstacleManager" type="Node2D" parent="."]
 script = ExtResource("5_obstacle_manager")
+
+[node name="UI" type="CanvasLayer" parent="."]
+script = ExtResource("7_movement_ui")
+
+[node name="MovementCounter" type="Label" parent="UI"]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = -50.0
+offset_right = 120.0
+offset_bottom = -20.0
+text = "5/5"
+label_settings = SubResource("LabelSettings_movement")

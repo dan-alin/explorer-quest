@@ -77,36 +77,42 @@ func handle_movement_click(mouse_pos: Vector2):
 			print("=========================")
 			return
 		
-		# 6. Calcola la distanza di movimento (Manhattan distance)
-		var movement_distance = abs(current_grid_pos.x - target_grid_pos.x) + abs(current_grid_pos.y - target_grid_pos.y)
-		print("Movement distance calculated: ", movement_distance)
-		
-		# Verifica se il movimento è possibile
-		if not player.can_afford_movement(movement_distance):
-			print("Not enough movement to reach the target cell!")
-			print("=========================")
-			return
-		
-		# 7. Calcola il percorso attraverso le celle PRIMA di consumare movimento
+		# 6. Calcola il percorso attraverso le celle PRIMA di calcolare il costo
 		var path = calculate_path(current_grid_pos, target_grid_pos)
 		print("Path calculated: ", path)
 		
-		# 8. Controlla che ci sia un percorso valido e che non attraversi ostacoli
+		# 7. Controlla che ci sia un percorso valido e che non attraversi ostacoli
 		if path.is_empty():
 			print("No valid path found - movement denied!")
 			print("=========================")
 			return
 		
-		# 9. Valida che il percorso non attraversi ostacoli
+		# 8. Valida che il percorso non attraversi ostacoli
 		if not validate_path_clear(path, tilemap):
 			print("Path goes through obstacles - movement denied!")
 			print("=========================")
 			return
 		
-		# 10. SOLO ORA consuma il movimento (dopo aver validato tutto)
-		player.consume_movement(movement_distance)
+		# 9. Calcola il costo di movimento basato sulla lunghezza effettiva del percorso
+		var actual_movement_cost = path.size()
+		var manhattan_distance = abs(current_grid_pos.x - target_grid_pos.x) + abs(current_grid_pos.y - target_grid_pos.y)
+		print("Manhattan distance: ", manhattan_distance)
+		print("Actual path length: ", actual_movement_cost)
 		
-		# 11. Anima il player attraverso le celle del percorso
+		# 10. Verifica se il movimento è possibile con il costo effettivo
+		if not player.can_afford_movement(actual_movement_cost):
+			print("Not enough movement for actual path! Required: ", actual_movement_cost, ", Available: ", player.get_remaining_movement())
+			print("=========================")
+			return
+		
+		# 11. SOLO ORA consuma il movimento effettivo (dopo aver validato tutto)
+		player.consume_movement(actual_movement_cost)
+		
+		# 11. Pulisci il path preview prima di iniziare l'animazione
+		if player.grid_overlay:
+			player.grid_overlay.clear_path_preview()
+		
+		# 12. Anima il player attraverso le celle del percorso
 		animate_through_path(path, tilemap)
 		
 		# 12. Aggiorna la posizione griglia del player
