@@ -329,25 +329,29 @@ func find_obstacles_in_range(start_position: Vector2i, movement_range: int) -> v
 	
 	print("GridOverlay: Found ObstacleManager, checking for obstacles...")
 	
-	# Prima ottieni tutte le celle raggiungibili (inclusi gli ostacoli temporaneamente)
-	# per determinare l'area di movimento effettiva
-	var reachable_area = MovementCalculator.get_all_cells_in_movement_range(tilemap, start_position, movement_range)
-	
+	# Ottieni tutte le celle della tilemap
+	var used_cells = tilemap.get_used_cells()
 	var total_obstacles = 0
 	
-	# Controlla ogni cella nell'area raggiungibile per vedere se è un ostacolo
-	for cell in reachable_area:
+	# Per ogni cella, controlla se è un ostacolo E se sarebbe raggiungibile senza ostacoli
+	for cell in used_cells:
 		# Salta se è la posizione di partenza
 		if cell == start_position:
 			continue
 		
 		# Controlla se è un ostacolo
 		if obstacle_manager.has_obstacle_at(cell):
-			total_obstacles += 1
-			obstacle_cells.append(cell)
-			print("  Found obstacle at ", cell, " within movement area")
+			# Ora controlla se questa cella sarebbe raggiungibile se non fosse un ostacolo
+			# Usa pathfinding IGNORANDO gli ostacoli per vedere se sarebbe raggiungibile
+			var path_ignoring_obstacles = find_path_ignoring_obstacles(start_position, cell, movement_range)
+			if not path_ignoring_obstacles.is_empty() and path_ignoring_obstacles.size() <= movement_range:
+				total_obstacles += 1
+				obstacle_cells.append(cell)
+				print("  Found relevant obstacle at ", cell, " (would be reachable in ", path_ignoring_obstacles.size(), " steps)")
+			else:
+				print("  Ignoring distant obstacle at ", cell, " (too far to be relevant)")
 	
-	print("GridOverlay: Found ", total_obstacles, " obstacles within movement range")
+	print("GridOverlay: Found ", total_obstacles, " relevant obstacles within movement range")
 
 func clear_highlights() -> void:
 	# Pulisce tutte le evidenziazioni
@@ -370,6 +374,38 @@ func clear_path_preview() -> void:
 	path_preview.clear()
 	queue_redraw()
 	
+# Helper function to find path ignoring obstacles (for obstacle highlighting)
+func find_path_ignoring_obstacles(start: Vector2i, target: Vector2i, max_distance: int) -> Array[Vector2i]:
+	# Calcola un percorso semplice ignorando gli ostacoli per determinare se
+	# un ostacolo è "rilevante" (cioè lungo un percorso che il giocatore potrebbe voler seguire)
+	
+	# Usa la distanza Manhattan come approssimazione
+	var manhattan_distance = abs(target.x - start.x) + abs(target.y - start.y)
+	if manhattan_distance > max_distance:
+		return []  # Troppo lontano anche senza ostacoli
+	
+	# Crea un percorso lineare semplice (Manhattan path)
+	var path: Array[Vector2i] = []
+	var current = start
+	
+	# Prima muoviti orizzontalmente
+	while current.x != target.x:
+		if target.x > current.x:
+			current.x += 1
+		else:
+			current.x -= 1
+		path.append(Vector2i(current.x, current.y))
+	
+	# Poi muoviti verticalmente  
+	while current.y != target.y:
+		if target.y > current.y:
+			current.y += 1
+		else:
+			current.y -= 1
+		path.append(Vector2i(current.x, current.y))
+	
+	return path
+
 # Forza il ridisegno quando necessario
 func refresh_grid():
 	queue_redraw()
