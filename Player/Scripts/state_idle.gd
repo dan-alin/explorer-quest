@@ -44,7 +44,7 @@ func HandleInput(_event: InputEvent) -> State:
 	return null
 
 func handle_movement_click(mouse_pos: Vector2):
-	# Muovi il player al centro della cella cliccata (solo se raggiungibile)
+	# Muovi il player attraverso le celle fino alla destinazione
 	print("=== GRID MOVEMENT ===")
 	print("Mouse clicked at: ", mouse_pos)
 	
@@ -84,25 +84,65 @@ func handle_movement_click(mouse_pos: Vector2):
 		# 6. Consuma il movimento
 		player.consume_movement(movement_distance)
 		
-		# 7. Calcola il centro della cella target
-		var cell_center_local = tilemap.map_to_local(target_grid_pos)
-		var cell_center_global = tilemap.to_global(cell_center_local)
-		# Offset per centrare perfettamente il personaggio nella cella isometrica
-		var adjusted_position = cell_center_global + Vector2(1, -19)
+		# 7. Calcola il percorso attraverso le celle
+		var path = calculate_path(current_grid_pos, target_grid_pos)
+		print("Path calculated: ", path)
 		
-		print("Moving from cell ", current_grid_pos, " to cell ", target_grid_pos)
-		
-		# 8. Muovi il player alla nuova cella
-		player.global_position = adjusted_position
+		# 8. Controlla che ci sia un percorso valido
+		if path.is_empty():
+			print("No path calculated - direct teleport")
+			# Fallback diretto come prima
+			var cell_center_local = tilemap.map_to_local(target_grid_pos)
+			var cell_center_global = tilemap.to_global(cell_center_local)
+			var adjusted_position = cell_center_global + Vector2(1, -19)
+			player.global_position = adjusted_position
+		else:
+			# Anima il player attraverso le celle del percorso
+			animate_through_path(path, tilemap)
 		
 		# 9. Aggiorna la posizione griglia del player
 		player.current_grid_position = target_grid_pos
 		
-		# 10. Aggiorna le evidenziazioni dalla nuova posizione
-		player.enter_movement_mode()  # Ricalcola le celle raggiungibili
+		# 10. Aggiorna le evidenziazioni dalla nuova posizione (dopo un breve delay)
+		get_tree().create_timer(0.1).timeout.connect(func(): player.enter_movement_mode())
 		
-		print("Player moved to: ", player.global_position)
+		print("Player moved along path to: ", target_grid_pos)
 		print("Remaining movement: ", player.get_remaining_movement())
 		print("=========================")
 	else:
 		print("Tilemap not found!")
+
+func calculate_path(start: Vector2i, end: Vector2i) -> Array[Vector2i]:
+	# Calcola un percorso lineare (Manhattan path) da start a end
+	var path: Array[Vector2i] = []
+	var current = start
+	
+	# First move horizontally
+	while current.x != end.x:
+		if end.x > current.x:
+			current.x += 1
+		else:
+			current.x -= 1
+		path.append(Vector2i(current.x, current.y))
+	
+	# Then move vertically
+	while current.y != end.y:
+		if end.y > current.y:
+			current.y += 1
+		else:
+			current.y -= 1
+		path.append(Vector2i(current.x, current.y))
+	
+	return path
+
+func animate_through_path(path: Array[Vector2i], tilemap: TileMapLayer):
+	# Usa un tween per muovere il player attraverso il percorso
+	var tween = create_tween()
+	var duration_per_tile = 0.2  # Durata movimento per cella
+	
+	for tile in path:
+		var cell_center_local = tilemap.map_to_local(tile)
+		var cell_center_global = tilemap.to_global(cell_center_local)
+		var adjusted_position = cell_center_global + Vector2(1, -19)
+		
+		tween.tween_property(player, "global_position", adjusted_position, duration_per_tile)
