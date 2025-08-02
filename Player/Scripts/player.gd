@@ -235,6 +235,8 @@ func initialize_grid_overlay() -> void:
 				if child is GridOverlay:
 					grid_overlay = child
 					print("Found GridOverlay: ", grid_overlay.name)
+					# Imposta il riferimento al player nel GridOverlay
+					grid_overlay.set_player_reference(self)
 					break
 		
 		if not grid_overlay:

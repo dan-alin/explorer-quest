@@ -13,11 +13,21 @@ class_name GridOverlay
 @export var highlight_border_color: Color = Color(0.0, 1.0, 0.0, 0.8)  # Verde bordo
 @export var highlight_border_width: float = 2.0
 
+# Path preview colors
+@export var path_preview_color: Color = Color(0.8, 0.4, 0.8, 0.6)  # Viola per preview
+@export var path_preview_border_color: Color = Color(1.0, 0.0, 1.0, 0.8)  # Viola bordo
+@export var path_preview_width: float = 3.0
+@export var path_arrow_color: Color = Color(1.0, 0.5, 1.0, 0.9)  # Viola chiaro per frecce
+
 # Hover state
 var hovered_cell: Vector2i = Vector2i(-999, -999)  # Cella attualmente sotto il mouse
 
 # Movement highlighting state
 var highlighted_cells: Array[Vector2i] = []  # Celle evidenziate per movimento
+
+# Path preview state
+var path_preview: Array[Vector2i] = []  # Percorso di anteprima
+var player_reference: Player = null  # Riferimento al player per calcolare il percorso
 
 func _ready():
 	print("GridOverlay: _ready() called")
@@ -55,9 +65,10 @@ func update_hover_cell():
 	var tile_data = tilemap.get_cell_tile_data(grid_pos)
 	var new_hovered_cell = grid_pos if tile_data != null else Vector2i(-999, -999)
 	
-	# Se la cella hover è cambiata, ridisegna
+	# Se la cella hover è cambiata, aggiorna il preview del percorso
 	if new_hovered_cell != hovered_cell:
 		hovered_cell = new_hovered_cell
+		update_path_preview()
 		queue_redraw()
 
 func _draw():
@@ -86,6 +97,9 @@ func _draw():
 	
 	# Disegna le celle evidenziate per movimento
 	draw_highlighted_cells()
+	
+	# Disegna il preview del percorso
+	draw_path_preview()
 	
 	# Disegna l'hover se c'è una cella sotto il mouse
 	draw_hover_cell()
@@ -169,6 +183,63 @@ func draw_hover_cell():
 		draw_line(local_corners[1], local_corners[2], hover_color, hover_width)  # Right -> Bottom  
 		draw_line(local_corners[2], local_corners[3], hover_color, hover_width)  # Bottom -> Left
 		draw_line(local_corners[3], local_corners[0], hover_color, hover_width)  # Left -> Top
+func update_path_preview():
+	if not player_reference or hovered_cell == Vector2i(-999, -999):
+		path_preview.clear()
+		return
+	
+	# Solo calcola il percorso se la cella è raggiungibile
+	if not is_cell_highlighted(hovered_cell):
+		path_preview.clear()
+		return
+	
+	var start_position = player_reference.current_grid_position
+	path_preview = calculate_path(start_position, hovered_cell)
+
+func calculate_path(start: Vector2i, end: Vector2i) -> Array[Vector2i]:
+	# Calcola un percorso lineare (Manhattan path) da start a end
+	var path: Array[Vector2i] = []
+	var current = start
+	
+	# First move horizontally
+	while current.x != end.x:
+		if end.x > current.x:
+			current.x += 1
+		else:
+			current.x -= 1
+		path.append(Vector2i(current.x, current.y))
+	
+	# Then move vertically
+	while current.y != end.y:
+		if end.y > current.y:
+			current.y += 1
+		else:
+			current.y -= 1
+		path.append(Vector2i(current.x, current.y))
+	
+	return path
+
+# Disegna il percorso di anteprima
+func draw_path_preview():
+	for cell in path_preview:
+		var cell_corners = get_cell_corners(cell)
+		var local_corners = []
+		for corner in cell_corners:
+			var global_corner = tilemap.to_global(corner)
+			local_corners.append(to_local(global_corner))
+		if local_corners.size() == 4:
+			draw_polygon(local_corners, [path_preview_color])
+			draw_line(local_corners[0], local_corners[1], path_preview_border_color, path_preview_width)
+			draw_line(local_corners[1], local_corners[2], path_preview_border_color, path_preview_width)
+			draw_line(local_corners[2], local_corners[3], path_preview_border_color, path_preview_width)
+			draw_line(local_corners[3], local_corners[0], path_preview_border_color, path_preview_width)
+
+
+# Path preview functions
+func set_player_reference(player: Player) -> void:
+	# Imposta il riferimento al player per calcolare i percorsi
+	player_reference = player
+	print("GridOverlay: Player reference set")
 
 # Movement highlighting functions
 func highlight_reachable_cells(start_position: Vector2i, movement_range: int) -> void:
