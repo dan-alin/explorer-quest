@@ -63,8 +63,8 @@ func update_hover_cell():
 	if not tilemap:
 		return
 	
-	# Ottieni posizione mouse globale
-	var mouse_pos = get_global_mouse_position()
+	# Ottieni posizione mouse globale (camera-aware)
+	var mouse_pos = get_camera_aware_mouse_position()
 	
 	# Converti in coordinate griglia
 	var local_mouse_pos = tilemap.to_local(mouse_pos)
@@ -409,3 +409,14 @@ func find_path_ignoring_obstacles(start: Vector2i, target: Vector2i, max_distanc
 # Forza il ridisegno quando necessario
 func refresh_grid():
 	queue_redraw()
+
+# Camera-aware mouse position function (CRITICAL for camera compatibility)
+func get_camera_aware_mouse_position() -> Vector2:
+	# Get the current camera
+	var camera = get_viewport().get_camera_2d()
+	if camera:
+		# Camera is active - use camera-aware mouse position
+		return camera.get_global_mouse_position()
+	else:
+		# No camera - use regular mouse position
+		return get_global_mouse_position()

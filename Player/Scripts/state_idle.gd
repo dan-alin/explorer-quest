@@ -48,10 +48,14 @@ func handle_movement_click(mouse_pos: Vector2):
 	print("=== GRID MOVEMENT ===")
 	print("Mouse clicked at: ", mouse_pos)
 	
+	# Convert to camera-aware position if camera is active
+	var world_mouse_pos = get_camera_aware_mouse_position(mouse_pos)
+	print("Camera-aware position: ", world_mouse_pos)
+	
 	var tilemap = player.get_parent() as TileMapLayer
 	if tilemap:
-		# 1. Converti click del mouse in coordinate griglia
-		var local_mouse_pos = tilemap.to_local(mouse_pos)
+		# 1. Converti click del mouse in coordinate griglia (usa camera-aware position)
+		var local_mouse_pos = tilemap.to_local(world_mouse_pos)
 		var target_grid_pos = tilemap.local_to_map(local_mouse_pos)
 		print("Target grid position: ", target_grid_pos)
 		
@@ -189,3 +193,14 @@ func animate_through_path(path: Array[Vector2i], tilemap: TileMapLayer):
 		var adjusted_position = cell_center_global + Vector2(1, -19)
 		
 		tween.tween_property(player, "global_position", adjusted_position, duration_per_tile)
+
+# Camera-aware mouse position function (CRITICAL for camera compatibility)
+func get_camera_aware_mouse_position(screen_pos: Vector2) -> Vector2:
+	# Get the current camera
+	var camera = get_viewport().get_camera_2d()
+	if camera:
+		# Camera is active - use camera-aware mouse position
+		return camera.get_global_mouse_position()
+	else:
+		# No camera - use the screen position as world position
+		return screen_pos
