@@ -65,13 +65,19 @@ func handle_movement_click(mouse_pos: Vector2):
 			print("=========================")
 			return
 		
-		# 4. Controlla se la cella è evidenziata (raggiungibile)
+		# 4. Controlla se la cella è un ostacolo
+		if MovementCalculator.is_obstacle(tilemap, target_grid_pos):
+			print("Target cell is an obstacle - movement denied!")
+			print("=========================")
+			return
+		
+		# 5. Controlla se la cella è evidenziata (raggiungibile)
 		if not player.is_cell_reachable(target_grid_pos):
 			print("Cell not reachable or highlighted - movement denied!")
 			print("=========================")
 			return
 		
-		# 5. Calcola la distanza di movimento (Manhattan distance)
+		# 6. Calcola la distanza di movimento (Manhattan distance)
 		var movement_distance = abs(current_grid_pos.x - target_grid_pos.x) + abs(current_grid_pos.y - target_grid_pos.y)
 		print("Movement distance calculated: ", movement_distance)
 		
@@ -81,29 +87,32 @@ func handle_movement_click(mouse_pos: Vector2):
 			print("=========================")
 			return
 		
-		# 6. Consuma il movimento
-		player.consume_movement(movement_distance)
-		
-		# 7. Calcola il percorso attraverso le celle
+		# 7. Calcola il percorso attraverso le celle PRIMA di consumare movimento
 		var path = calculate_path(current_grid_pos, target_grid_pos)
 		print("Path calculated: ", path)
 		
-		# 8. Controlla che ci sia un percorso valido
+		# 8. Controlla che ci sia un percorso valido e che non attraversi ostacoli
 		if path.is_empty():
-			print("No path calculated - direct teleport")
-			# Fallback diretto come prima
-			var cell_center_local = tilemap.map_to_local(target_grid_pos)
-			var cell_center_global = tilemap.to_global(cell_center_local)
-			var adjusted_position = cell_center_global + Vector2(1, -19)
-			player.global_position = adjusted_position
-		else:
-			# Anima il player attraverso le celle del percorso
-			animate_through_path(path, tilemap)
+			print("No valid path found - movement denied!")
+			print("=========================")
+			return
 		
-		# 9. Aggiorna la posizione griglia del player
+		# 9. Valida che il percorso non attraversi ostacoli
+		if not validate_path_clear(path, tilemap):
+			print("Path goes through obstacles - movement denied!")
+			print("=========================")
+			return
+		
+		# 10. SOLO ORA consuma il movimento (dopo aver validato tutto)
+		player.consume_movement(movement_distance)
+		
+		# 11. Anima il player attraverso le celle del percorso
+		animate_through_path(path, tilemap)
+		
+		# 12. Aggiorna la posizione griglia del player
 		player.current_grid_position = target_grid_pos
 		
-		# 10. Aggiorna le evidenziazioni dalla nuova posizione (dopo un breve delay)
+		# 13. Aggiorna le evidenziazioni dalla nuova posizione (dopo un breve delay)
 		get_tree().create_timer(0.1).timeout.connect(func(): player.enter_movement_mode())
 		
 		print("Player moved along path to: ", target_grid_pos)
@@ -112,8 +121,32 @@ func handle_movement_click(mouse_pos: Vector2):
 	else:
 		print("Tilemap not found!")
 
+func validate_path_clear(path: Array[Vector2i], tilemap: TileMapLayer) -> bool:
+	# Verifica che ogni cella del percorso non sia un ostacolo
+	for cell in path:
+		if MovementCalculator.is_obstacle(tilemap, cell):
+			print("  Path blocked at cell: ", cell)
+			return false
+	return true
+
 func calculate_path(start: Vector2i, end: Vector2i) -> Array[Vector2i]:
-	# Calcola un percorso lineare (Manhattan path) da start a end
+	# Usa A* pathfinding per evitare ostacoli con limite di movimento
+	var tilemap = player.get_parent() as TileMapLayer
+	if not tilemap:
+		return []
+	
+	# Ottieni il movimento rimanente del player
+	var movement_limit = player.get_remaining_movement()
+	var path = MovementCalculator.find_path_avoiding_obstacles(tilemap, start, end, movement_limit)
+	
+	# Se A* non trova un percorso, prova il percorso lineare come fallback
+	if path.is_empty():
+		path = calculate_linear_path(start, end, tilemap)
+	
+	return path
+
+func calculate_linear_path(start: Vector2i, end: Vector2i, tilemap: TileMapLayer) -> Array[Vector2i]:
+	# Calcola un percorso lineare (Manhattan path) da start a end come fallback
 	var path: Array[Vector2i] = []
 	var current = start
 	
@@ -123,7 +156,9 @@ func calculate_path(start: Vector2i, end: Vector2i) -> Array[Vector2i]:
 			current.x += 1
 		else:
 			current.x -= 1
-		path.append(Vector2i(current.x, current.y))
+		# Controlla se non è un ostacolo prima di aggiungere
+		if not MovementCalculator.is_obstacle(tilemap, Vector2i(current.x, current.y)):
+			path.append(Vector2i(current.x, current.y))
 	
 	# Then move vertically
 	while current.y != end.y:
@@ -131,7 +166,9 @@ func calculate_path(start: Vector2i, end: Vector2i) -> Array[Vector2i]:
 			current.y += 1
 		else:
 			current.y -= 1
-		path.append(Vector2i(current.x, current.y))
+		# Controlla se non è un ostacolo prima di aggiungere
+		if not MovementCalculator.is_obstacle(tilemap, Vector2i(current.x, current.y)):
+			path.append(Vector2i(current.x, current.y))
 	
 	return path
 

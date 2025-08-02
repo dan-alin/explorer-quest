@@ -24,6 +24,11 @@ var hovered_cell: Vector2i = Vector2i(-999, -999)  # Cella attualmente sotto il 
 
 # Movement highlighting state
 var highlighted_cells: Array[Vector2i] = []  # Celle evidenziate per movimento
+var obstacle_cells: Array[Vector2i] = []  # Celle ostacolo da evidenziare
+
+# Obstacle highlighting colors
+@export var obstacle_color: Color = Color(0.8, 0.2, 0.2, 0.6)  # Rosso semi-trasparente per ostacoli
+@export var obstacle_border_color: Color = Color(1.0, 0.0, 0.0, 0.8)  # Rosso bordo per ostacoli
 
 # Path preview state
 var path_preview: Array[Vector2i] = []  # Percorso di anteprima
@@ -97,6 +102,9 @@ func _draw():
 	
 	# Disegna le celle evidenziate per movimento
 	draw_highlighted_cells()
+	
+	# Disegna gli ostacoli evidenziati
+	draw_obstacle_cells()
 	
 	# Disegna il preview del percorso
 	draw_path_preview()
@@ -197,7 +205,22 @@ func update_path_preview():
 	path_preview = calculate_path(start_position, hovered_cell)
 
 func calculate_path(start: Vector2i, end: Vector2i) -> Array[Vector2i]:
-	# Calcola un percorso lineare (Manhattan path) da start a end
+	# Ottieni il limite di movimento dal player
+	var movement_limit = -1
+	if player_reference:
+		movement_limit = player_reference.get_remaining_movement()
+	
+	# Usa A* pathfinding per evitare ostacoli con limite di movimento
+	var path = MovementCalculator.find_path_avoiding_obstacles(tilemap, start, end, movement_limit)
+	
+	# Se A* non trova un percorso, prova il percorso lineare come fallback
+	if path.is_empty():
+		path = calculate_linear_path(start, end)
+	
+	return path
+
+func calculate_linear_path(start: Vector2i, end: Vector2i) -> Array[Vector2i]:
+	# Calcola un percorso lineare (Manhattan path) da start a end come fallback
 	var path: Array[Vector2i] = []
 	var current = start
 	
@@ -207,7 +230,9 @@ func calculate_path(start: Vector2i, end: Vector2i) -> Array[Vector2i]:
 			current.x += 1
 		else:
 			current.x -= 1
-		path.append(Vector2i(current.x, current.y))
+		# Controlla se non è un ostacolo prima di aggiungere
+		if not MovementCalculator.is_obstacle(tilemap, Vector2i(current.x, current.y)):
+			path.append(Vector2i(current.x, current.y))
 	
 	# Then move vertically
 	while current.y != end.y:
@@ -215,7 +240,9 @@ func calculate_path(start: Vector2i, end: Vector2i) -> Array[Vector2i]:
 			current.y += 1
 		else:
 			current.y -= 1
-		path.append(Vector2i(current.x, current.y))
+		# Controlla se non è un ostacolo prima di aggiungere
+		if not MovementCalculator.is_obstacle(tilemap, Vector2i(current.x, current.y)):
+			path.append(Vector2i(current.x, current.y))
 	
 	return path
 
@@ -245,13 +272,72 @@ func set_player_reference(player: Player) -> void:
 func highlight_reachable_cells(start_position: Vector2i, movement_range: int) -> void:
 	# Calcola le celle raggiungibili
 	highlighted_cells = MovementCalculator.get_reachable_cells(tilemap, start_position, movement_range)
-	print("GridOverlay: Highlighting ", highlighted_cells.size(), " reachable cells")
+	
+	# Trova gli ostacoli nel range di movimento per evidenziarli in rosso
+	find_obstacles_in_range(start_position, movement_range)
+	
+	print("GridOverlay: Highlighting ", highlighted_cells.size(), " reachable cells and ", obstacle_cells.size(), " obstacles")
 	# Ridisegna per mostrare le nuove evidenziazioni
 	queue_redraw()
+
+# Disegna gli ostacoli evidenziati
+func draw_obstacle_cells():
+	# Disegna l'evidenziazione degli ostacoli in rosso
+	for cell in obstacle_cells:
+		var cell_corners = get_cell_corners(cell)
+		var local_corners = []
+		for corner in cell_corners:
+			var global_corner = tilemap.to_global(corner)
+			local_corners.append(to_local(global_corner))
+		
+		# Disegna l'evidenziazione con un bordo rosso
+		if local_corners.size() == 4:
+			draw_polygon(local_corners, [obstacle_color])
+			draw_line(local_corners[0], local_corners[1], obstacle_border_color, highlight_border_width)
+			draw_line(local_corners[1], local_corners[2], obstacle_border_color, highlight_border_width)
+			draw_line(local_corners[2], local_corners[3], obstacle_border_color, highlight_border_width)
+			draw_line(local_corners[3], local_corners[0], obstacle_border_color, highlight_border_width)
+
+# Trova gli ostacoli nel range di movimento
+func find_obstacles_in_range(start_position: Vector2i, movement_range: int) -> void:
+	obstacle_cells.clear()
+	
+	if not tilemap:
+		print("GridOverlay: No tilemap for obstacle detection")
+		return
+	
+	# Cerca l'ObstacleManager nella scena
+	var obstacle_manager = MovementCalculator.find_obstacle_manager(tilemap)
+	if not obstacle_manager:
+		print("GridOverlay: No ObstacleManager found")
+		return
+	
+	print("GridOverlay: Found ObstacleManager, checking for obstacles...")
+	
+	# Prima ottieni tutte le celle raggiungibili (inclusi gli ostacoli temporaneamente)
+	# per determinare l'area di movimento effettiva
+	var reachable_area = MovementCalculator.get_all_cells_in_movement_range(tilemap, start_position, movement_range)
+	
+	var total_obstacles = 0
+	
+	# Controlla ogni cella nell'area raggiungibile per vedere se è un ostacolo
+	for cell in reachable_area:
+		# Salta se è la posizione di partenza
+		if cell == start_position:
+			continue
+		
+		# Controlla se è un ostacolo
+		if obstacle_manager.has_obstacle_at(cell):
+			total_obstacles += 1
+			obstacle_cells.append(cell)
+			print("  Found obstacle at ", cell, " within movement area")
+	
+	print("GridOverlay: Found ", total_obstacles, " obstacles within movement range")
 
 func clear_highlights() -> void:
 	# Pulisce tutte le evidenziazioni
 	highlighted_cells.clear()
+	obstacle_cells.clear()
 	print("GridOverlay: Cleared movement highlights")
 	# Ridisegna per rimuovere le evidenziazioni
 	queue_redraw()

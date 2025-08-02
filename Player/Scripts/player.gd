@@ -34,7 +34,7 @@ var projectile_spawn_offset: float = 20.0
 func _ready() -> void:
 	# Initialize stats if not already set
 	if not stats:
-		stats = CharacterStats.create_character_stats(4, 250.0, 100.0)  # Player default stats
+		stats = CharacterStats.create_character_stats(5, 250.0, 100.0)  # Player default stats
 	
 	add_to_group("player")  # Add to group so enemies can find us
 	state_machine.Initialize(self)
@@ -293,6 +293,8 @@ func start_new_turn() -> void:
 	remaining_movement = get_movement_range()
 	total_movement_this_turn = 0
 	print("=== NEW TURN STARTED ===")
+	print("CharacterStats movement_range: ", stats.movement_range if stats else "NO STATS")
+	print("get_movement_range() returns: ", get_movement_range())
 	print("Movement available: ", remaining_movement)
 	print("=========================")
 	
