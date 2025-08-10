@@ -9,6 +9,7 @@ var is_invulnerable: bool = false
 
 # Movement highlighting
 var grid_overlay: GridOverlay
+var movement_ui: MovementUI
 var is_movement_mode: bool = false
 var current_grid_position: Vector2i  # Posizione griglia corrente del player
 
@@ -34,7 +35,7 @@ var projectile_spawn_offset: float = 20.0
 func _ready() -> void:
 	# Initialize stats if not already set
 	if not stats:
-		stats = CharacterStats.create_character_stats(4, 250.0, 100.0)  # Player default stats
+		stats = CharacterStats.create_character_stats(5, 250.0, 100.0)  # Player default stats
 	
 	add_to_group("player")  # Add to group so enemies can find us
 	state_machine.Initialize(self)
@@ -235,10 +236,29 @@ func initialize_grid_overlay() -> void:
 				if child is GridOverlay:
 					grid_overlay = child
 					print("Found GridOverlay: ", grid_overlay.name)
+					# Imposta il riferimento al player nel GridOverlay
+					grid_overlay.set_player_reference(self)
 					break
 		
 		if not grid_overlay:
 			print("Warning: Could not find GridOverlay!")
+
+func initialize_movement_ui() -> void:
+	# Trova il MovementUI nella scena
+	if not movement_ui:
+		var tilemap = get_parent() as TileMapLayer
+		if tilemap:
+			# Cerca il UI come figlio della tilemap
+			for child in tilemap.get_children():
+				if child is MovementUI:
+					movement_ui = child
+					print("Found MovementUI: ", movement_ui.name)
+					# Imposta il riferimento al player nel MovementUI
+					movement_ui.set_player_reference(self)
+					break
+		
+		if not movement_ui:
+			print("Warning: Could not find MovementUI!")
 
 func enter_movement_mode() -> void:
 	# Entra in modalità movimento
@@ -246,6 +266,9 @@ func enter_movement_mode() -> void:
 	
 	# Inizializza il grid overlay se necessario
 	initialize_grid_overlay()
+	
+	# Inizializza la UI se necessario
+	initialize_movement_ui()
 	
 	# Calcola e evidenzia le celle raggiungibili
 	if grid_overlay:
@@ -291,8 +314,14 @@ func start_new_turn() -> void:
 	remaining_movement = get_movement_range()
 	total_movement_this_turn = 0
 	print("=== NEW TURN STARTED ===")
+	print("CharacterStats movement_range: ", stats.movement_range if stats else "NO STATS")
+	print("get_movement_range() returns: ", get_movement_range())
 	print("Movement available: ", remaining_movement)
 	print("=========================")
+	
+	# Aggiorna la UI
+	if movement_ui:
+		movement_ui.on_movement_changed()
 	
 	# Ricalcola le evidenziazioni per il nuovo turno
 	if is_movement_mode:
@@ -309,6 +338,10 @@ func consume_movement(distance: int) -> bool:
 	
 	print("Movement consumed: ", distance)
 	print("Remaining movement: ", remaining_movement)
+	
+	# Aggiorna la UI
+	if movement_ui:
+		movement_ui.on_movement_changed()
 	
 	# Se non c'è più movimento, termina il turno
 	if remaining_movement <= 0:

@@ -1,7 +1,7 @@
 class_name CharacterStats extends Resource
 
 # Movement stats
-@export var movement_range: int = 3  # How many grid cells the character can move per turn
+@export var movement_range: int = 5  # How many grid cells the character can move per turn
 @export var movement_speed: float = 200.0  # Animation speed when moving between cells
 
 # Health stats
