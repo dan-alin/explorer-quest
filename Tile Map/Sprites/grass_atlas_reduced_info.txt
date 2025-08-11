@@ -1,0 +1,16 @@
+﻿# Atlante Ridotto - Informazioni per Godot
+
+Dimensioni atlante: 192x64 pixels
+Dimensione tile: 64x64 pixels  
+Griglia: 3 colonne x 1 riga
+
+Configurazione TileSetAtlasSource per Godot:
+- texture_region_size = Vector2i(64, 64)
+- columns = 3
+- separation = Vector2i(0, 0)
+- texture_margin = Vector2i(0, 0)
+
+Mappa delle tile nel nuovo atlante:
+0: grass_dense (erba densa) -> Griglia(0, 0)
+1: grass_dry_patches (erba con zone secche) -> Griglia(1, 0)  
+2: grass_flowers (erba con fiori) -> Griglia(2, 0)

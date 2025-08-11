@@ -41,13 +41,13 @@ var player_reference: Player = null  # Riferimento al player per calcolare il pe
 func _ready():
 	print("GridOverlay: _ready() called")
 	
-	# Il GridOverlay è figlio di Playground, quindi Playground è il parent
-	tilemap = get_parent() as TileMapLayer
+	# Il GridOverlay è figlio di Playground (Node2D), dobbiamo trovare TerrainLayer
+	tilemap = get_parent().get_node("TerrainLayer") as TileMapLayer
 	if not tilemap:
-		print("GridOverlay: Tilemap not found! Parent type: ", get_parent().get_class())
+		print("GridOverlay: TerrainLayer not found! Parent type: ", get_parent().get_class())
 		return
 	else:
-		print("GridOverlay: Tilemap found: ", tilemap.name)
+		print("GridOverlay: TerrainLayer found: ", tilemap.name)
 	
 	# Metti la griglia sotto i personaggi ma sopra il terreno
 	z_index = 10
@@ -322,12 +322,28 @@ func find_obstacles_in_range(start_position: Vector2i, movement_range: int) -> v
 		return
 	
 	# Cerca l'ObstacleManager nella scena
+	print("GridOverlay: Looking for ObstacleManager...")
+	print("GridOverlay: tilemap parent is: ", tilemap.get_parent().get_class())
 	var obstacle_manager = MovementCalculator.find_obstacle_manager(tilemap)
 	if not obstacle_manager:
 		print("GridOverlay: No ObstacleManager found")
+		# Debug: cerca manualmente
+		var playground = tilemap.get_parent()
+		print("GridOverlay: Playground children count: ", playground.get_child_count())
+		for child in playground.get_children():
+			print("  Child: ", child.name, " (class: ", child.get_class(), ")")
+			if child.has_method("has_obstacle_at"):
+				print("    Found node with has_obstacle_at method!")
 		return
 	
-	print("GridOverlay: Found ObstacleManager, checking for obstacles...")
+	print("GridOverlay: Found ObstacleManager: ", obstacle_manager.name, " (class: ", obstacle_manager.get_class(), ")")
+	
+	# Debug: testa se specifici ostacoli esistono
+	print("GridOverlay: Testing specific obstacle positions...")
+	var test_positions = [Vector2i(6, 3), Vector2i(8, 4), Vector2i(7, 2), Vector2i(9, 3), Vector2i(5, 5)]
+	for pos in test_positions:
+		var has_obstacle = obstacle_manager.has_obstacle_at(pos)
+		print("  Position ", pos, ": has_obstacle = ", has_obstacle)
 	
 	# Ottieni tutte le celle della tilemap
 	var used_cells = tilemap.get_used_cells()

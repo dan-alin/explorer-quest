@@ -8,10 +8,7 @@ static func get_reachable_cells(tilemap: TileMapLayer, start_position: Vector2i,
 	var reachable_cells: Array[Vector2i] = []
 	var used_cells = tilemap.get_used_cells()  # Solo celle con tiles
 	
-	print("=== CALCULATING REACHABLE CELLS ===")
-	print("Start position: ", start_position)
-	print("Movement range: ", movement_range)
-	print("Total cells in tilemap: ", used_cells.size())
+	# Calcolo delle celle raggiungibili
 	
 	# Usa pathfinding per calcolare le celle raggiungibili considerando gli ostacoli
 	for cell in used_cells:
@@ -26,16 +23,7 @@ static func get_reachable_cells(tilemap: TileMapLayer, start_position: Vector2i,
 			var actual_distance = path.size()
 			if actual_distance <= movement_range:
 				reachable_cells.append(cell)
-				print("  Added cell ", cell, " at path distance ", actual_distance)
-			else:
-				print("  Skipped cell ", cell, " - path too long (", actual_distance, " > ", movement_range, ")")
-		else:
-			var manhattan_distance = get_manhattan_distance(start_position, cell)
-			if manhattan_distance <= movement_range:
-				print("  Skipped unreachable cell ", cell, " (blocked by obstacles)")
-	
-	print("Total reachable cells: ", reachable_cells.size())
-	print("=====================================")
+			# Cella raggiungibile
 	return reachable_cells
 
 # Verifica se una cella è un ostacolo
@@ -52,7 +40,11 @@ static func is_obstacle(tilemap: TileMapLayer, cell_pos: Vector2i) -> bool:
 	if tile_data.get_custom_data("walkable") != null:
 		return not tile_data.get_custom_data("walkable")
 	
-	# Controlla se ci sono ostacoli posizionati sopra questa cella
+	# Controlla se ci sono oggetti nell'ObjectLayer (alberi, rocce, edifici, etc.)
+	if has_object_at_position(tilemap, cell_pos):
+		return true
+	
+	# Controlla se ci sono ostacoli posizionati sopra questa cella (legacy)
 	if has_obstacle_at_position(tilemap, cell_pos):
 		return true
 	
@@ -147,7 +139,31 @@ static func reconstruct_path(came_from: Dictionary, current: Vector2i) -> Array[
 		current = came_from[current]
 	return path
 
-# Controlla se c'è un ostacolo posizionato in una certa posizione della griglia
+# Controlla se c'è un oggetto (albero, roccia, edificio, etc.) in una certa posizione della griglia
+static func has_object_at_position(tilemap: TileMapLayer, cell_pos: Vector2i) -> bool:
+	# Trova l'ObjectLayer nella scena
+	var object_layer = find_object_layer(tilemap)
+	if object_layer:
+		# Controlla se c'è una tile nell'ObjectLayer a questa posizione
+		var tile_data = object_layer.get_cell_tile_data(cell_pos)
+		var has_object = tile_data != null
+		# Debug temporaneo per vedere dove sono gli alberi
+		if has_object:
+			print("OBSTACLE DETECTED: Object found at ", cell_pos, " in ObjectLayer")
+		return has_object
+	return false
+
+# Trova l'ObjectLayer nella scena
+static func find_object_layer(tilemap: TileMapLayer) -> TileMapLayer:
+	# La struttura è: Playground (Node2D) -> TerrainLayer, ObjectLayer
+	var playground = tilemap.get_parent()  # Node2D (Playground)
+	if playground:
+		for child in playground.get_children():
+			if child is TileMapLayer and child.name == "ObjectLayer":
+				return child
+	return null
+
+# Controlla se c'è un ostacolo posizionato in una certa posizione della griglia (legacy)
 static func has_obstacle_at_position(tilemap: TileMapLayer, cell_pos: Vector2i) -> bool:
 	# Cerca un ObstacleManager nella scena per gestire gli ostacoli
 	var obstacle_manager = find_obstacle_manager(tilemap)
@@ -157,14 +173,15 @@ static func has_obstacle_at_position(tilemap: TileMapLayer, cell_pos: Vector2i) 
 
 # Trova l'ObstacleManager nella scena
 static func find_obstacle_manager(tilemap: TileMapLayer) -> Node:
-	# Cerca prima nel parent della tilemap
-	var parent = tilemap.get_parent()
-	if parent:
-		for child in parent.get_children():
+	# Ora la struttura è: Playground (Node2D) -> TerrainLayer (tilemap) e ObstacleManager
+	# Il parent della tilemap è direttamente Playground (Node2D)
+	var playground = tilemap.get_parent()  # Node2D (Playground)
+	if playground:
+		for child in playground.get_children():
 			if child.has_method("has_obstacle_at"):
 				return child
 	
-	# Se non trovato, cerca nella root della scena
+	# Se non trovato, cerca nella root della scena come fallback
 	var scene_root = tilemap.get_tree().current_scene
 	if scene_root:
 		for child in scene_root.get_children():

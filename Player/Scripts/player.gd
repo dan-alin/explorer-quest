@@ -165,9 +165,10 @@ func shoot_projectile(target_position: Vector2) -> void:
 
 func snap_to_grid_center():
 	# Snap il player al centro di una cella all'avvio del gioco
-	var tilemap = get_parent() as TileMapLayer
+	# Il parent ora è Node2D, dobbiamo trovare TerrainLayer
+	var tilemap = get_parent().get_node("TerrainLayer") as TileMapLayer
 	if not tilemap:
-		print("Player: No tilemap found for grid snapping")
+		print("Player: No TerrainLayer found for grid snapping")
 		return
 	
 	# Trova la cella più vicina alla posizione attuale del player
@@ -229,10 +230,11 @@ func can_move_to_distance(distance: int) -> bool:
 func initialize_grid_overlay() -> void:
 	# Trova il GridOverlay nella scena
 	if not grid_overlay:
-		var tilemap = get_parent() as TileMapLayer
-		if tilemap:
-			# Cerca il GridOverlay come figlio della tilemap
-			for child in tilemap.get_children():
+		# Il parent ora è Node2D, il GridOverlay è figlio del parent
+		var playground = get_parent() as Node2D
+		if playground:
+			# Cerca il GridOverlay come figlio di Playground
+			for child in playground.get_children():
 				if child is GridOverlay:
 					grid_overlay = child
 					print("Found GridOverlay: ", grid_overlay.name)
@@ -272,7 +274,8 @@ func enter_movement_mode() -> void:
 	
 	# Calcola e evidenzia le celle raggiungibili
 	if grid_overlay:
-		var tilemap = get_parent() as TileMapLayer
+		# Il parent ora è Node2D, dobbiamo trovare TerrainLayer
+		var tilemap = get_parent().get_node("TerrainLayer") as TileMapLayer
 		if tilemap:
 			# Se non è stato inizializzato il sistema di turni, inizializzalo
 			if remaining_movement == 0 and total_movement_this_turn == 0:
