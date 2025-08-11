@@ -1,125 +1,125 @@
 class_name MovementCalculator extends RefCounted
 
-# Calcola tutte le celle raggiungibili da una posizione di partenza usando pathfinding
+# Calculate all reachable cells from a starting position using pathfinding
 static func get_reachable_cells(tilemap: TileMapLayer, start_position: Vector2i, movement_range: int) -> Array[Vector2i]:
 	if not tilemap or movement_range <= 0:
 		return []
 	
 	var reachable_cells: Array[Vector2i] = []
-	var used_cells = tilemap.get_used_cells()  # Solo celle con tiles
+	var used_cells = tilemap.get_used_cells()  # Only cells with tiles
 	
-	# Calcolo delle celle raggiungibili
+	# Calculate reachable cells
 	
-	# Usa pathfinding per calcolare le celle raggiungibili considerando gli ostacoli
+	# Use pathfinding to calculate reachable cells considering obstacles
 	for cell in used_cells:
-		# Salta se è la posizione di partenza o è un ostacolo
+		# Skip if it's the starting position or an obstacle
 		if cell == start_position or is_obstacle(tilemap, cell):
 			continue
 		
-		# Usa pathfinding per verificare se la cella è raggiungibile
+		# Use pathfinding to verify if the cell is reachable
 		var path = find_path_avoiding_obstacles(tilemap, start_position, cell, movement_range)
 		if not path.is_empty():
-			# Il path rappresenta i passi di movimento necessari (non include la posizione di partenza)
+			# The path represents the movement steps needed (doesn't include starting position)
 			var actual_distance = path.size()
 			if actual_distance <= movement_range:
 				reachable_cells.append(cell)
-			# Cella raggiungibile
+			# Cell is reachable
 	return reachable_cells
 
-# Verifica se una cella è un ostacolo
+# Check if a cell is an obstacle
 static func is_obstacle(tilemap: TileMapLayer, cell_pos: Vector2i) -> bool:
 	if not tilemap:
-		return true  # Considera come ostacolo se non c'è tilemap
+		return true  # Consider as obstacle if there's no tilemap
 	
-	# Ottieni i dati della cella
+	# Get cell data
 	var tile_data = tilemap.get_cell_tile_data(cell_pos)
 	if not tile_data:
-		return true  # Celle senza tile sono ostacoli
+		return true  # Cells without tiles are obstacles
 	
-	# Controlla se c'è un custom data "walkable" impostato
+	# Check if there's a custom "walkable" data set
 	if tile_data.get_custom_data("walkable") != null:
 		return not tile_data.get_custom_data("walkable")
 	
-	# Controlla se ci sono oggetti nell'ObjectLayer (alberi, rocce, edifici, etc.)
+	# Check if there are objects in the ObjectLayer (trees, rocks, buildings, etc.)
 	if has_object_at_position(tilemap, cell_pos):
 		return true
 	
-	# Controlla se ci sono ostacoli posizionati sopra questa cella (legacy)
+	# Check if there are obstacles placed on this cell (legacy)
 	if has_obstacle_at_position(tilemap, cell_pos):
 		return true
 	
-	# Di default, tutte le celle con tile sono camminabili
+	# By default, all cells with tiles are walkable
 	return false
 
-# Calcola la distanza Manhattan tra due celle
+# Calculate Manhattan distance between two cells
 static func get_manhattan_distance(from: Vector2i, to: Vector2i) -> int:
 	return abs(from.x - to.x) + abs(from.y - to.y)
 
-# Verifica se una cella è raggiungibile da una posizione con un certo range
+# Check if a cell is reachable from a position within a certain range
 static func is_cell_reachable(tilemap: TileMapLayer, from: Vector2i, to: Vector2i, movement_range: int) -> bool:
 	if not tilemap:
 		return false
 	
-	# Controllo rapido della distanza Manhattan
+	# Quick Manhattan distance check
 	var distance = get_manhattan_distance(from, to)
 	if distance > movement_range:
 		return false
 	
-	# Controlla se la cella di destinazione ha un tile
+	# Check if the destination cell has a tile
 	var used_cells = tilemap.get_used_cells()
 	if not to in used_cells:
 		return false
 	
-	# Per un controllo più accurato, potremmo implementare pathfinding,
-	# ma per ora usiamo la distanza Manhattan come approssimazione
+	# For a more accurate check, we could implement pathfinding,
+	# but for now we use Manhattan distance as approximation
 	return true
 
-# Trova un percorso che evita gli ostacoli usando A* con limite di movimento
+# Find a path that avoids obstacles using A* with movement limit
 static func find_path_avoiding_obstacles(tilemap: TileMapLayer, start: Vector2i, end: Vector2i, max_movement: int = -1) -> Array[Vector2i]:
 	if not tilemap or is_obstacle(tilemap, end):
-		return []  # Non può raggiungere un ostacolo
+		return []  # Cannot reach an obstacle
 	
-	# Se il movimento è limitato, verifica la distanza Manhattan
+	# If movement is limited, check Manhattan distance
 	if max_movement > 0 and get_manhattan_distance(start, end) > max_movement:
-		return []  # Troppo lontano
+		return []  # Too far
 	
-	# A* pathfinding implementation semplificata
+	# Simplified A* pathfinding implementation
 	var open_set = [start]
 	var came_from = {}
 	var g_score = {start: 0}
 	var f_score = {start: get_manhattan_distance(start, end)}
 	
 	while not open_set.is_empty():
-		# Trova il nodo con il f_score più basso
+		# Find the node with the lowest f_score
 		var current = open_set[0]
 		for node in open_set:
 			if f_score.get(node, INF) < f_score.get(current, INF):
 				current = node
 		
 		if current == end:
-			# Ricostruisci il percorso
+			# Reconstruct the path
 			return reconstruct_path(came_from, current)
 		
 		open_set.erase(current)
 		
-		# Esamina i vicini (4 direzioni)
+		# Examine neighbors (4 directions)
 		var neighbors = [
-			current + Vector2i(1, 0),   # Destra
-			current + Vector2i(-1, 0),  # Sinistra
-			current + Vector2i(0, 1),   # Giù
-			current + Vector2i(0, -1)   # Su
+			current + Vector2i(1, 0),   # Right
+			current + Vector2i(-1, 0),  # Left
+			current + Vector2i(0, 1),   # Down
+			current + Vector2i(0, -1)   # Up
 		]
 		
 		for neighbor in neighbors:
-			# Salta se è un ostacolo o fuori dalla mappa
+			# Skip if it's an obstacle or out of bounds
 			if is_obstacle(tilemap, neighbor):
 				continue
 			
 			var tentative_g_score = g_score.get(current, INF) + 1
 			
-			# Se c'è un limite di movimento, controlla se questo percorso lo supererebbe
+			# If there's a movement limit, check if this path would exceed it
 			if max_movement > 0 and tentative_g_score > max_movement:
-				continue  # Percorso troppo lungo, salta questo vicino
+				continue  # Path too long, skip this neighbor
 			
 			if tentative_g_score < g_score.get(neighbor, INF):
 				came_from[neighbor] = current
@@ -129,9 +129,9 @@ static func find_path_avoiding_obstacles(tilemap: TileMapLayer, start: Vector2i,
 				if neighbor not in open_set:
 					open_set.append(neighbor)
 	
-	return []  # Nessun percorso trovato
+	return []  # No path found
 
-# Ricostruisce il percorso dall'algoritmo A*
+# Reconstruct the path from A* algorithm
 static func reconstruct_path(came_from: Dictionary, current: Vector2i) -> Array[Vector2i]:
 	var path: Array[Vector2i] = []
 	while current in came_from:
@@ -139,23 +139,19 @@ static func reconstruct_path(came_from: Dictionary, current: Vector2i) -> Array[
 		current = came_from[current]
 	return path
 
-# Controlla se c'è un oggetto (albero, roccia, edificio, etc.) in una certa posizione della griglia
+# Check if there's an object (tree, rock, building, etc.) at a grid position
 static func has_object_at_position(tilemap: TileMapLayer, cell_pos: Vector2i) -> bool:
-	# Trova l'ObjectLayer nella scena
+	# Find the ObjectLayer in the scene
 	var object_layer = find_object_layer(tilemap)
 	if object_layer:
-		# Controlla se c'è una tile nell'ObjectLayer a questa posizione
+		# Check if there's a tile in the ObjectLayer at this position
 		var tile_data = object_layer.get_cell_tile_data(cell_pos)
-		var has_object = tile_data != null
-		# Debug temporaneo per vedere dove sono gli alberi
-		if has_object:
-			print("OBSTACLE DETECTED: Object found at ", cell_pos, " in ObjectLayer")
-		return has_object
+		return tile_data != null
 	return false
 
-# Trova l'ObjectLayer nella scena
+# Find the ObjectLayer in the scene
 static func find_object_layer(tilemap: TileMapLayer) -> TileMapLayer:
-	# La struttura è: Playground (Node2D) -> TerrainLayer, ObjectLayer
+	# Structure is: Playground (Node2D) -> TerrainLayer, ObjectLayer
 	var playground = tilemap.get_parent()  # Node2D (Playground)
 	if playground:
 		for child in playground.get_children():
@@ -163,25 +159,25 @@ static func find_object_layer(tilemap: TileMapLayer) -> TileMapLayer:
 				return child
 	return null
 
-# Controlla se c'è un ostacolo posizionato in una certa posizione della griglia (legacy)
+# Check if there's an obstacle placed at a grid position (legacy)
 static func has_obstacle_at_position(tilemap: TileMapLayer, cell_pos: Vector2i) -> bool:
-	# Cerca un ObstacleManager nella scena per gestire gli ostacoli
+	# Look for an ObstacleManager in the scene to handle obstacles
 	var obstacle_manager = find_obstacle_manager(tilemap)
 	if obstacle_manager:
 		return obstacle_manager.has_obstacle_at(cell_pos)
 	return false
 
-# Trova l'ObstacleManager nella scena
+# Find the ObstacleManager in the scene
 static func find_obstacle_manager(tilemap: TileMapLayer) -> Node:
-	# Ora la struttura è: Playground (Node2D) -> TerrainLayer (tilemap) e ObstacleManager
-	# Il parent della tilemap è direttamente Playground (Node2D)
+	# Current structure is: Playground (Node2D) -> TerrainLayer (tilemap) and ObstacleManager
+	# The tilemap's parent is directly Playground (Node2D)
 	var playground = tilemap.get_parent()  # Node2D (Playground)
 	if playground:
 		for child in playground.get_children():
 			if child.has_method("has_obstacle_at"):
 				return child
 	
-	# Se non trovato, cerca nella root della scena come fallback
+	# If not found, search in scene root as fallback
 	var scene_root = tilemap.get_tree().current_scene
 	if scene_root:
 		for child in scene_root.get_children():
@@ -190,15 +186,15 @@ static func find_obstacle_manager(tilemap: TileMapLayer) -> Node:
 	
 	return null
 
-# Ottieni tutte le celle nell'area di movimento (inclusi ostacoli)
+# Get all cells in movement range (including obstacles)
 static func get_all_cells_in_movement_range(tilemap: TileMapLayer, start_position: Vector2i, movement_range: int) -> Array[Vector2i]:
 	if not tilemap or movement_range <= 0:
 		return []
 	
 	var cells_in_range: Array[Vector2i] = []
-	var used_cells = tilemap.get_used_cells()  # Solo celle con tiles
+	var used_cells = tilemap.get_used_cells()  # Only cells with tiles
 	
-	# Controlla ogni cella per vedere se è nell'area di movimento usando distanza Manhattan
+	# Check each cell to see if it's in movement range using Manhattan distance
 	for cell in used_cells:
 		var distance = get_manhattan_distance(start_position, cell)
 		if distance <= movement_range:
@@ -206,7 +202,7 @@ static func get_all_cells_in_movement_range(tilemap: TileMapLayer, start_positio
 	
 	return cells_in_range
 
-# Debug: stampa info sulle celle raggiungibili
+# Debug: print info about reachable cells
 static func debug_reachable_cells(tilemap: TileMapLayer, start_position: Vector2i, movement_range: int) -> void:
 	var cells = get_reachable_cells(tilemap, start_position, movement_range)
 	print("=== REACHABLE CELLS DEBUG ===")

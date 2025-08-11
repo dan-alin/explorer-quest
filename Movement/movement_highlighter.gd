@@ -1,93 +1,93 @@
 class_name MovementHighlighter extends Node2D
 
-# Colori per l'evidenziazione
-@export var highlight_color: Color = Color(0.2, 0.8, 0.2, 0.6)  # Verde semi-trasparente per celle raggiungibili
-@export var highlight_border_color: Color = Color(0.0, 1.0, 0.0, 0.8)  # Verde bordo per celle raggiungibili
-@export var obstacle_color: Color = Color(0.8, 0.2, 0.2, 0.6)  # Rosso semi-trasparente per ostacoli
-@export var obstacle_border_color: Color = Color(1.0, 0.0, 0.0, 0.8)  # Rosso bordo per ostacoli
+# Colors for highlighting
+@export var highlight_color: Color = Color(0.2, 0.8, 0.2, 0.6)  # Green semi-transparent for reachable cells
+@export var highlight_border_color: Color = Color(0.0, 1.0, 0.0, 0.8)  # Green border for reachable cells
+@export var obstacle_color: Color = Color(0.8, 0.2, 0.2, 0.6)  # Red semi-transparent for obstacles
+@export var obstacle_border_color: Color = Color(1.0, 0.0, 0.0, 0.8)  # Red border for obstacles
 @export var highlight_border_width: float = 2.0
 
-# Riferimenti
+# References
 var tilemap: TileMapLayer
 var highlighted_cells: Array[Vector2i] = []
-var obstacle_cells: Array[Vector2i] = []  # Celle ostacolo da evidenziare
+var obstacle_cells: Array[Vector2i] = []  # Obstacle cells to highlight
 var highlight_sprites: Array[Node2D] = []
 
 func _ready():
-	# Imposta z_index per essere sopra la tilemap ma sotto il player
+	# Set z_index to be above tilemap but below player
 	z_index = 50
 
-# Imposta il riferimento alla tilemap
+# Set tilemap reference
 func set_tilemap(tm: TileMapLayer) -> void:
 	tilemap = tm
 
-# Evidenzia le celle raggiungibili da una posizione
+# Highlight reachable cells from a position
 func highlight_reachable_cells(start_position: Vector2i, movement_range: int) -> void:
-	# Prima pulisci le evidenziazioni precedenti
+	# First clear previous highlights
 	clear_highlights()
 	
 	if not tilemap:
 		print("MovementHighlighter: No tilemap reference set!")
 		return
 	
-	# Calcola le celle raggiungibili
+	# Calculate reachable cells
 	highlighted_cells = MovementCalculator.get_reachable_cells(tilemap, start_position, movement_range)
 	
-	# Trova gli ostacoli nel range di movimento per evidenziarli in rosso
+	# Find obstacles in movement range to highlight in red
 	find_obstacles_in_range(start_position, movement_range)
 	
 	print("Highlighting ", highlighted_cells.size(), " reachable cells and ", obstacle_cells.size(), " obstacles")
 	
-	# Crea gli sprite di evidenziazione per le celle raggiungibili (verdi)
+	# Create highlighting sprites for reachable cells (green)
 	for cell_pos in highlighted_cells:
 		create_highlight_sprite(cell_pos, false)
 	
-	# Crea gli sprite di evidenziazione per gli ostacoli (rossi)
+	# Create highlighting sprites for obstacles (red)
 	for cell_pos in obstacle_cells:
 		create_highlight_sprite(cell_pos, true)
 
-# Crea uno sprite di evidenziazione per una cella specifica
+# Create highlighting sprite for specific cell
 func create_highlight_sprite(cell_pos: Vector2i, is_obstacle: bool = false) -> void:
 	if not tilemap:
 		return
 	
-	# Controlla se siamo nell'albero della scena
+	# Check if we're in the scene tree
 	if not get_tree():
 		print("MovementHighlighter: Not in scene tree yet!")
 		return
 	
-	# Converti posizione griglia in posizione mondo
+	# Convert grid position to world position
 	var cell_center_local = tilemap.map_to_local(cell_pos)
 	var cell_center_global = tilemap.to_global(cell_center_local)
 	
-	# Crea un nodo per l'evidenziazione
+	# Create node for highlighting
 	var highlight_node = Node2D.new()
 	highlight_node.position = cell_center_global
 	highlight_node.z_index = z_index
 	
-	# Aggiungi il nodo come figlio di questo highlighter invece che alla scena
+	# Add node as child of this highlighter instead of to scene
 	add_child(highlight_node)
 	highlight_sprites.append(highlight_node)
 	
-	# Collega il segnale di disegno con informazione se è un ostacolo
+	# Connect draw signal with information if it's an obstacle
 	highlight_node.draw.connect(_draw_highlight_cell.bind(highlight_node, is_obstacle))
 	
-	# Forza il ridisegno
+	# Force redraw
 	highlight_node.queue_redraw()
 
-# Disegna l'evidenziazione di una cella
+# Draw cell highlighting
 func _draw_highlight_cell(node: Node2D, is_obstacle: bool = false) -> void:
 	if not tilemap:
 		return
 	
-	# Ottieni le dimensioni di una cella della tilemap
+	# Get tilemap cell dimensions
 	var tile_size = tilemap.tile_set.tile_size
 	
-	# Per tilemap isometriche, crea una forma a diamante
+	# For isometric tilemaps, create diamond shape
 	var half_width = tile_size.x / 2
-	var quarter_height = tile_size.y / 4  # Proporzioni isometriche 2:1
+	var quarter_height = tile_size.y / 4  # Isometric proportions 2:1
 	
-	# Punti per la forma a diamante isometrica
+	# Points for isometric diamond shape
 	var points = PackedVector2Array([
 		Vector2(0, -quarter_height),     # Top
 		Vector2(half_width, 0),          # Right
@@ -95,19 +95,19 @@ func _draw_highlight_cell(node: Node2D, is_obstacle: bool = false) -> void:
 		Vector2(-half_width, 0)          # Left
 	])
 	
-	# Scegli colori in base al tipo di cella
+	# Choose colors based on cell type
 	var fill_color = obstacle_color if is_obstacle else highlight_color
 	var border_color = obstacle_border_color if is_obstacle else highlight_border_color
 	
-	# Disegna il riempimento del diamante
+	# Draw diamond fill
 	node.draw_colored_polygon(points, fill_color)
 	
-	# Disegna il bordo del diamante
+	# Draw diamond border
 	var closed_points = points
-	closed_points.append(points[0])  # Chiudi il poligono
+	closed_points.append(points[0])  # Close the polygon
 	node.draw_polyline(closed_points, border_color, highlight_border_width)
 
-# Trova gli ostacoli nel range di movimento
+# Find obstacles in movement range
 func find_obstacles_in_range(start_position: Vector2i, movement_range: int) -> void:
 	obstacle_cells.clear()
 	
@@ -115,7 +115,7 @@ func find_obstacles_in_range(start_position: Vector2i, movement_range: int) -> v
 		print("MovementHighlighter: No tilemap for obstacle detection")
 		return
 	
-	# Cerca l'ObstacleManager nella scena
+	# Look for ObstacleManager in scene
 	var obstacle_manager = MovementCalculator.find_obstacle_manager(tilemap)
 	if not obstacle_manager:
 		print("MovementHighlighter: No ObstacleManager found")
@@ -123,20 +123,20 @@ func find_obstacles_in_range(start_position: Vector2i, movement_range: int) -> v
 	
 	print("MovementHighlighter: Found ObstacleManager, checking for obstacles...")
 	
-	# Ottieni tutte le celle della tilemap
+	# Get all tilemap cells
 	var used_cells = tilemap.get_used_cells()
 	var total_obstacles = 0
 	
-	# Controlla ogni cella per vedere se è un ostacolo nel range
+	# Check each cell to see if it's an obstacle in range
 	for cell in used_cells:
-		# Salta se è la posizione di partenza
+		# Skip if it's the starting position
 		if cell == start_position:
 			continue
 		
-		# Controlla se è un ostacolo
+		# Check if it's an obstacle
 		if obstacle_manager.has_obstacle_at(cell):
 			total_obstacles += 1
-			# Controlla se è nel range di movimento (usando distanza Manhattan come filtro)
+			# Check if it's in movement range (using Manhattan distance as filter)
 			var distance = MovementCalculator.get_manhattan_distance(start_position, cell)
 			print("  Found obstacle at ", cell, " distance: ", distance)
 			if distance <= movement_range:
@@ -147,7 +147,7 @@ func find_obstacles_in_range(start_position: Vector2i, movement_range: int) -> v
 	
 	print("MovementHighlighter: Found ", total_obstacles, " total obstacles, ", obstacle_cells.size(), " in range")
 
-# Pulisce tutte le evidenziazioni
+# Clear all highlights
 func clear_highlights() -> void:
 	for sprite in highlight_sprites:
 		if is_instance_valid(sprite):
@@ -158,15 +158,15 @@ func clear_highlights() -> void:
 	obstacle_cells.clear()
 	print("Cleared movement highlights")
 
-# Controlla se una cella è attualmente evidenziata
+# Check if a cell is currently highlighted
 func is_cell_highlighted(cell_pos: Vector2i) -> bool:
 	return cell_pos in highlighted_cells
 
-# Ottieni tutte le celle attualmente evidenziate
+# Get all currently highlighted cells
 func get_highlighted_cells() -> Array[Vector2i]:
 	return highlighted_cells.duplicate()
 
-# Debug: stampa info sulle celle evidenziate
+# Debug: print info about highlighted cells
 func debug_highlighted_cells() -> void:
 	print("=== HIGHLIGHTED CELLS DEBUG ===")
 	print("Total highlighted cells: ", highlighted_cells.size())
