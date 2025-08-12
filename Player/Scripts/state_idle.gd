@@ -52,12 +52,14 @@ func handle_movement_click(mouse_pos: Vector2):
 	var world_mouse_pos = get_camera_aware_mouse_position(mouse_pos)
 	print("Camera-aware position: ", world_mouse_pos)
 	
-	var tilemap = player.get_parent() as TileMapLayer
+	# Il parent ora è Node2D, dobbiamo trovare TerrainLayer
+	var tilemap = player.get_parent().get_node("TerrainLayer") as TileMapLayer
 	if tilemap:
 		# 1. Converti click del mouse in coordinate griglia (usa camera-aware position)
 		var local_mouse_pos = tilemap.to_local(world_mouse_pos)
 		var target_grid_pos = tilemap.local_to_map(local_mouse_pos)
 		print("Target grid position: ", target_grid_pos)
+		print("*** CLICKED ON CELL: (", target_grid_pos.x, ", ", target_grid_pos.y, ") ***")
 		
 		# 2. Ottieni la posizione griglia attuale del player (usa la posizione memorizzata)
 		var current_grid_pos = player.current_grid_position
@@ -141,7 +143,8 @@ func validate_path_clear(path: Array[Vector2i], tilemap: TileMapLayer) -> bool:
 
 func calculate_path(start: Vector2i, end: Vector2i) -> Array[Vector2i]:
 	# Usa A* pathfinding per evitare ostacoli con limite di movimento
-	var tilemap = player.get_parent() as TileMapLayer
+	# Il parent ora è Node2D, dobbiamo trovare TerrainLayer
+	var tilemap = player.get_parent().get_node("TerrainLayer") as TileMapLayer
 	if not tilemap:
 		return []
 	
