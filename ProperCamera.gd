@@ -52,6 +52,10 @@ func handle_camera_controls(delta):
     if Input.is_action_just_pressed("toggle_follow"):
         toggle_camera_mode()
     
+    # Reset player HP/MP/movement when R key is pressed
+    if Input.is_action_just_pressed("rotate_camera"):
+        reset_player()
+    
     # Zoom with mouse wheel
     handle_zoom()
 
@@ -108,3 +112,8 @@ func get_world_mouse_position() -> Vector2:
 # Getter for UI to access camera mode
 func get_current_mode() -> int:
     return current_mode
+
+# Reset player HP, MP and movement (R key)
+func reset_player():
+    if player_node and player_node.has_method("full_reset"):
+        player_node.full_reset()

@@ -10,6 +10,7 @@ var is_invulnerable: bool = false
 # Movement highlighting
 var grid_overlay: GridOverlay
 var movement_ui: MovementUI
+var action_panel: ActionPanel
 var is_movement_mode: bool = false
 var current_grid_position: Vector2i  # Posizione griglia corrente del player
 
@@ -35,7 +36,7 @@ var projectile_spawn_offset: float = 20.0
 func _ready() -> void:
 	# Initialize stats if not already set
 	if not stats:
-		stats = CharacterStats.create_character_stats(5, 250.0, 100.0)  # Player default stats
+		stats = CharacterStats.create_character_stats(5, 250.0, 100.0, 50.0)  # Player default: 5 move, 250 speed, 100 HP, 50 MP
 	
 	add_to_group("player")  # Add to group so enemies can find us
 	state_machine.Initialize(self)
@@ -111,6 +112,10 @@ func take_damage(damage: float, knockback_vector: Vector2) -> void:
 	# Visual feedback
 	flash_damage()
 	
+	# Notify ActionPanel of HP change
+	if action_panel:
+		action_panel.on_hp_changed()
+	
 	# Brief invulnerability to prevent spam damage
 	set_invulnerable(1.0)
 	
@@ -165,10 +170,8 @@ func shoot_projectile(target_position: Vector2) -> void:
 
 func snap_to_grid_center():
 	# Snap il player al centro di una cella all'avvio del gioco
-	# Il parent ora è Node2D, dobbiamo trovare TerrainLayer
 	var tilemap = get_parent().get_node("TerrainLayer") as TileMapLayer
 	if not tilemap:
-		print("Player: No TerrainLayer found for grid snapping")
 		return
 	
 	# Trova la cella più vicina alla posizione attuale del player
@@ -193,8 +196,6 @@ func snap_to_grid_center():
 	
 	# Memorizza la posizione griglia corretta
 	current_grid_position = current_grid_pos
-	
-	print("Player snapped to grid cell ", current_grid_pos, " at position ", global_position)
 
 func find_nearest_valid_cell(tilemap: TileMapLayer, start_pos: Vector2i) -> Vector2i:
 	# Trova la cella valida (con tile) più vicina alla posizione di partenza
@@ -237,13 +238,9 @@ func initialize_grid_overlay() -> void:
 			for child in playground.get_children():
 				if child is GridOverlay:
 					grid_overlay = child
-					print("Found GridOverlay: ", grid_overlay.name)
-					# Imposta il riferimento al player nel GridOverlay
 					grid_overlay.set_player_reference(self)
 					break
 		
-		if not grid_overlay:
-			print("Warning: Could not find GridOverlay!")
 
 func initialize_movement_ui() -> void:
 	# Trova il MovementUI nella scena
@@ -254,13 +251,29 @@ func initialize_movement_ui() -> void:
 			for child in tilemap.get_children():
 				if child is MovementUI:
 					movement_ui = child
-					print("Found MovementUI: ", movement_ui.name)
-					# Imposta il riferimento al player nel MovementUI
 					movement_ui.set_player_reference(self)
 					break
 		
-		if not movement_ui:
-			print("Warning: Could not find MovementUI!")
+
+func initialize_action_panel() -> void:
+	# Trova l'ActionPanel nella scena
+	if not action_panel:
+		var playground = get_parent() as Node2D
+		if playground:
+			# Cerca il layer UI
+			var ui_layer = playground.get_node_or_null("UI")
+			if ui_layer:
+				# Cerca l'ActionPanel come figlio del layer UI
+				for child in ui_layer.get_children():
+					if child is ActionPanel:
+						action_panel = child
+						print("Found ActionPanel: ", action_panel.name)
+						# Imposta il riferimento al player nell'ActionPanel
+						action_panel.set_player_reference(self)
+						break
+		
+		if not action_panel:
+			print("Warning: Could not find ActionPanel!")
 
 func enter_movement_mode() -> void:
 	# Entra in modalità movimento
@@ -272,6 +285,9 @@ func enter_movement_mode() -> void:
 	# Inizializza la UI se necessario
 	initialize_movement_ui()
 	
+	# Inizializza l'ActionPanel se necessario
+	initialize_action_panel()
+	
 	# Calcola e evidenzia le celle raggiungibili
 	if grid_overlay:
 		# Il parent ora è Node2D, dobbiamo trovare TerrainLayer
@@ -281,19 +297,12 @@ func enter_movement_mode() -> void:
 			if remaining_movement == 0 and total_movement_this_turn == 0:
 				start_new_turn()
 			
-			print("=== PLAYER MOVEMENT MODE DEBUG ===")
-			print("Player starting grid position: ", current_grid_position)
-			print("Remaining movement: ", remaining_movement)
-			print("Max movement range: ", get_movement_range())
-			print("======================================")
 			
 			# Evidenzia le celle raggiungibili basate sul movimento residuo
-			if has_movement_left():
-				grid_overlay.highlight_reachable_cells(current_grid_position, remaining_movement)
-			else:
-				grid_overlay.clear_highlights()
-				print("No movement left - no cells highlighted")
-			print("Entered movement mode - highlighting reachable cells")
+				if has_movement_left():
+					grid_overlay.highlight_reachable_cells(current_grid_position, remaining_movement)
+				else:
+					grid_overlay.clear_highlights()
 
 func exit_movement_mode() -> void:
 	# Esci dalla modalità movimento
@@ -302,7 +311,6 @@ func exit_movement_mode() -> void:
 	# Pulisci le evidenziazioni
 	if grid_overlay:
 		grid_overlay.clear_highlights()
-		print("Exited movement mode - cleared highlights")
 
 func is_cell_reachable(target_cell: Vector2i) -> bool:
 	# Controlla se una cella è raggiungibile e evidenziata
@@ -317,14 +325,16 @@ func start_new_turn() -> void:
 	remaining_movement = get_movement_range()
 	total_movement_this_turn = 0
 	print("=== NEW TURN STARTED ===")
-	print("CharacterStats movement_range: ", stats.movement_range if stats else "NO STATS")
-	print("get_movement_range() returns: ", get_movement_range())
 	print("Movement available: ", remaining_movement)
 	print("=========================")
 	
 	# Aggiorna la UI
 	if movement_ui:
 		movement_ui.on_movement_changed()
+	
+	# Aggiorna l'ActionPanel
+	if action_panel:
+		action_panel.on_movement_changed()
 	
 	# Ricalcola le evidenziazioni per il nuovo turno
 	if is_movement_mode:
@@ -333,18 +343,18 @@ func start_new_turn() -> void:
 func consume_movement(distance: int) -> bool:
 	# Consuma movimento per una certa distanza
 	if distance > remaining_movement:
-		print("Not enough movement! Required: ", distance, ", Available: ", remaining_movement)
 		return false
 	
 	remaining_movement -= distance
 	total_movement_this_turn += distance
 	
-	print("Movement consumed: ", distance)
-	print("Remaining movement: ", remaining_movement)
-	
 	# Aggiorna la UI
 	if movement_ui:
 		movement_ui.on_movement_changed()
+	
+	# Aggiorna l'ActionPanel
+	if action_panel:
+		action_panel.on_movement_changed()
 	
 	# Se non c'è più movimento, termina il turno
 	if remaining_movement <= 0:
@@ -361,14 +371,73 @@ func can_afford_movement(distance: int) -> bool:
 func end_turn() -> void:
 	# Termina il turno - nessun movimento rimasto
 	print("=== TURN ENDED ===")
-	print("Total movement used: ", total_movement_this_turn)
-	print("No more movement available!")
 	print("===================")
 	
 	# Disabilita le evidenziazioni
 	if grid_overlay:
 		grid_overlay.clear_highlights()
+	
+	# Aggiorna l'ActionPanel per riflettere il nuovo stato
+	if action_panel:
+		action_panel.on_movement_changed()
+	
 	# Ma mantieni movement mode attivo per permettere azioni future
 
 func has_movement_left() -> bool:
 	return remaining_movement > 0
+
+# Mana management functions
+func consume_mana(amount: float) -> bool:
+	if not stats:
+		return false
+	
+	var success = stats.consume_mana(amount)
+	if success:
+		# Notify ActionPanel of MP change
+		if action_panel:
+			action_panel.on_mp_changed()
+	
+	return success
+
+func restore_mana(amount: float) -> void:
+	if not stats:
+		return
+	
+	stats.restore_mana(amount)
+	
+	# Notify ActionPanel of MP change
+	if action_panel:
+		action_panel.on_mp_changed()
+
+func heal(amount: float) -> void:
+	if not stats:
+		return
+	
+	stats.heal(amount)
+	
+	# Notify ActionPanel of HP change
+	if action_panel:
+		action_panel.on_hp_changed()
+
+# Full reset function - restores HP, MP and starts new turn
+func full_reset() -> void:
+	if not stats:
+		return
+	
+	print("Player: Full reset initiated")
+	
+	# Reset HP to max
+	stats.current_health = stats.max_health
+	
+	# Reset MP to max
+	stats.current_mana = stats.max_mana
+	
+	# Start new turn last (resets movement and triggers UI updates)
+	start_new_turn()
+	
+	# Notify ActionPanel of HP/MP changes
+	if action_panel:
+		action_panel.on_hp_changed()
+		action_panel.on_mp_changed()
+	
+	print("Player: Full reset completed")

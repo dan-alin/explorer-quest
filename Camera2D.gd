@@ -18,17 +18,18 @@ func _process(delta):
     if Input.is_action_pressed("down"):
         position.y += move_speed * delta
     
-    # Rotate camera 90 degrees when R key is pressed
+    # Reset player HP/MP/movement when R key is pressed
     if Input.is_action_just_pressed("rotate_camera"):
-        rotate_camera()
+        reset_player()
     
     # Recenter camera on player when C key is pressed
     if Input.is_action_just_pressed("recenter_camera"):
         recenter_on_player()
 
-# Rotate camera 90 degrees clockwise
-func rotate_camera():
-    rotation_degrees += 90
+# Reset player HP, MP and movement (R key)
+func reset_player():
+	if player and player.has_method("full_reset"):
+		player.full_reset()
 
 # Recenter camera on player
 func recenter_on_player():
